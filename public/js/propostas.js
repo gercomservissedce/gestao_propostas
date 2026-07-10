@@ -1,4 +1,5 @@
 const ETAPAS = ['ELABORANDO PROPOSTA', 'AGENDADO VISITA', 'AGUARDANDO VISITA', 'EM NEGOCIAÇÃO', 'FECHADO', 'PERDIDO'];
+const ORIGENS = ['LEAD', 'PROSPECÇÃO ATIVA', 'INDICAÇÃO', 'RENOVAÇÃO', 'EVENTO'];
 const CAMPOS_VALOR = [
   ['vlr_comodato', 'Vlr. comodato'], ['vlr_serv_adicional', 'Vlr. serv. adicional'],
   ['vlr_mensal', 'Vlr. mensal'], ['vlr_taxa_adesao', 'Vlr. taxa adesão'],
@@ -11,7 +12,7 @@ const CAMPOS_CUSTO = [
 ];
 
 const Propostas = {
-  filtros: { busca: '', cliente: '', filial_id: '', consultor_id: '', status: 'ATIVA', etapa: '', termometro: '' },
+  filtros: { busca: '', cliente: '', filial_id: '', consultor_id: '', status: 'ATIVA', etapa: '', termometro: '', origem: '' },
   filiais: [],
   consultores: [],
   diasAlerta: 30,
@@ -55,6 +56,10 @@ const Propostas = {
           <option value="FRIO" ${this.filtros.termometro === 'FRIO' ? 'selected' : ''}>Frio</option>
           <option value="NULA" ${this.filtros.termometro === 'NULA' ? 'selected' : ''}>Não classificada</option>
         </select></div>
+        <div class="campo"><label>Origem</label><select id="pr-origem">
+          <option value="">Todas</option>
+          ${ORIGENS.map(o => `<option ${o === this.filtros.origem ? 'selected' : ''}>${o}</option>`).join('')}
+        </select></div>
         <button class="btn btn-primario" id="pr-nova">+ Nova proposta</button>
       </div>
       <div class="cartao"><div class="rolagem" id="pr-tabela">Carregando…</div></div>
@@ -81,6 +86,7 @@ const Propostas = {
     liga('pr-status', 'status');
     liga('pr-etapa', 'etapa');
     liga('pr-term', 'termometro');
+    liga('pr-origem', 'origem');
     document.getElementById('pr-nova').onclick = () => this.abrirForm(null);
     await this.listar();
   },
@@ -102,7 +108,7 @@ const Propostas = {
       <table class="tabela">
       <thead><tr>
         <th>Nº</th><th>Data</th><th>Cliente</th><th>Filial</th><th>Consultor</th>
-        <th style="text-align:right">Valor total</th><th>Termômetro</th><th>Etapa</th><th>Últ. contato</th><th>Status</th>
+        <th style="text-align:right">Valor total</th><th>Termômetro</th><th>Etapa</th><th>Origem</th><th>Últ. contato</th><th>Status</th>
       </tr></thead>
       <tbody>
         ${lista.map(p => `
@@ -115,6 +121,7 @@ const Propostas = {
           <td class="num">${fmtMoeda(p.vlr_total)}</td>
           <td>${badgeTerm(p.termometro)}</td>
           <td style="font-size:11.5px">${esc((p.etapa || '—').toLowerCase())}</td>
+          <td style="font-size:11.5px">${esc(p.origem || '—')}</td>
           <td class="num">${p.status === 'ATIVA' && p.dias_sem_contato > this.diasAlerta
             ? `<span class="badge badge-alerta" title="Sem contato há ${p.dias_sem_contato} dias">${p.ultima_data_contato ? fmtData(p.ultima_data_contato) : 'nunca'} ⚠</span>`
             : (p.ultima_data_contato ? fmtData(p.ultima_data_contato) : '—')}</td>
@@ -169,6 +176,10 @@ const Propostas = {
         <div class="campo"><label>Termômetro</label><select id="f-termometro">
           <option value="">Não classificada</option>
           ${['QUENTE', 'MORNO', 'FRIO'].map(t => `<option ${t === p.termometro ? 'selected' : ''}>${t}</option>`).join('')}
+        </select></div>
+        <div class="campo"><label>Origem</label><select id="f-origem">
+          <option value="">—</option>
+          ${ORIGENS.map(o => `<option ${o === p.origem ? 'selected' : ''}>${o}</option>`).join('')}
         </select></div>
         <div class="campo"><label>Status</label><select id="f-status">
           ${['ATIVA', 'FECHADA', 'PERDIDA'].map(s => `<option ${s === (p.status || 'ATIVA') ? 'selected' : ''}>${s}</option>`).join('')}
@@ -236,6 +247,7 @@ const Propostas = {
       cliente: document.getElementById('f-cliente').value.trim(),
       tipo_negocio: document.getElementById('f-tipo_negocio').value.trim(),
       etapa: document.getElementById('f-etapa').value || '',
+      origem: document.getElementById('f-origem').value || '',
       termometro: document.getElementById('f-termometro').value || '',
       status: document.getElementById('f-status').value,
       data_fechamento: document.getElementById('f-data_fechamento').value || '',
