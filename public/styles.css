@@ -1,4 +1,4 @@
-/* ===== Tokens ===== */
+/* ===== Tokens (tema claro) ===== */
 :root {
   --tinta: #1c2733;
   --tinta-2: #5a6774;
@@ -7,19 +7,63 @@
   --cartao: #ffffff;
   --borda: #e3e7eb;
   --marca: #17435e;
+  --marca-solida: #17435e;
   --marca-claro: #eaf1f6;
   --quente: #c93a2e;
   --morno: #b87503;
+  --morno-badge: var(--morno);
   --frio: #3e7cb1;
   --neutro: #8a8f98;
   --fechada: #2e7d46;
+  --fechada-fundo: #e7f3ec;
   --perdida: #8a949e;
+  --perdida-fundo: #eef0f2;
+  --alerta: #9a5b00;
   --alerta-fundo: #fdf3e7;
+  --alerta-borda: #ecd9bd;
+  --perigo-fundo: #fbf0ef;
+  --badge-nc-fundo: #ffffff;
   --sombra: 0 1px 3px rgba(28, 39, 51, .08);
   --raio: 8px;
+  --scheme: light;
+}
+
+/* ===== Tokens (tema escuro) =====
+   Termômetro validado com scripts/validate_palette.js (dataviz skill) contra
+   superfície #1a1a19: quente/morno/frio passam banda de luminosidade OKLCH,
+   piso de croma e separação CVD sem ressalvas. --morno-badge é uma variante
+   mais escura só para o preenchimento sólido do badge (texto branco em cima
+   precisa de mais contraste do que a marca usada na régua/legenda). */
+:root[data-theme="dark"] {
+  --tinta: #e7ebee;
+  --tinta-2: #9aa4b2;
+  --tinta-3: #6b7280;
+  --fundo: #161a1f;
+  --cartao: #20242a;
+  --borda: #2c3138;
+  --marca: #6fb0dc;
+  --marca-claro: rgba(111, 176, 220, .16);
+  --quente: #cd2c1d;
+  --morno: #c18010;
+  --morno-badge: #a06808;
+  --frio: #1f72ad;
+  --neutro: #9aa4b2;
+  --fechada: #57b37c;
+  --fechada-fundo: rgba(87, 179, 124, .16);
+  --perdida: #9aa4b2;
+  --perdida-fundo: rgba(154, 164, 178, .14);
+  --alerta: #e0a940;
+  --alerta-fundo: rgba(224, 169, 64, .16);
+  --alerta-borda: rgba(224, 169, 64, .35);
+  --perigo-fundo: rgba(205, 44, 29, .16);
+  --badge-nc-fundo: transparent;
+  --sombra: 0 1px 3px rgba(0, 0, 0, .4);
+  --scheme: dark;
 }
 
 * { box-sizing: border-box; margin: 0; padding: 0; }
+
+html { color-scheme: var(--scheme); }
 
 body {
   font-family: "Segoe UI", system-ui, -apple-system, sans-serif;
@@ -27,12 +71,17 @@ body {
   color: var(--tinta);
   font-size: 14px;
   line-height: 1.45;
+  transition: background-color .15s ease, color .15s ease;
+}
+.topo, .cartao, .campo input, .campo select, .campo textarea,
+button.btn, .modal-caixa, .tabela th, .tabela td {
+  transition: background-color .15s ease, color .15s ease, border-color .15s ease;
 }
 
 /* ===== Topo ===== */
 .topo {
   display: flex; align-items: center; gap: 28px;
-  background: var(--marca); color: #fff;
+  background: var(--marca-solida); color: #fff;
   padding: 10px 24px;
   position: sticky; top: 0; z-index: 20;
 }
@@ -76,21 +125,21 @@ main { max-width: 1280px; margin: 0 auto; padding: 20px 24px 60px; }
 .campo label { font-size: 11px; color: var(--tinta-2); font-weight: 600; }
 .campo input, .campo select, .campo textarea {
   border: 1px solid var(--borda); border-radius: 6px; padding: 7px 9px;
-  font-size: 13px; font-family: inherit; background: #fff; color: var(--tinta);
+  font-size: 13px; font-family: inherit; background: var(--cartao); color: var(--tinta);
   min-width: 120px;
 }
 .campo textarea { min-height: 60px; resize: vertical; }
 
 button.btn {
-  border: 1px solid var(--borda); background: #fff; color: var(--tinta);
+  border: 1px solid var(--borda); background: var(--cartao); color: var(--tinta);
   padding: 8px 14px; border-radius: 6px; font-size: 13px; font-weight: 600;
   cursor: pointer; font-family: inherit;
 }
 button.btn:hover { background: var(--marca-claro); border-color: var(--marca); }
-button.btn-primario { background: var(--marca); border-color: var(--marca); color: #fff; }
+button.btn-primario { background: var(--marca-solida); border-color: var(--marca-solida); color: #fff; }
 button.btn-primario:hover { background: #12374e; }
-button.btn-perigo { color: var(--quente); border-color: #eccfcc; }
-button.btn-perigo:hover { background: #fbf0ef; border-color: var(--quente); }
+button.btn-perigo { color: var(--quente); border-color: var(--quente); }
+button.btn-perigo:hover { background: var(--perigo-fundo); border-color: var(--quente); }
 button:disabled { opacity: .5; cursor: default; }
 
 /* ===== KPIs ===== */
@@ -155,13 +204,13 @@ table.tabela { width: 100%; border-collapse: collapse; font-size: 13px; }
   font-size: 11px; font-weight: 700; letter-spacing: .4px; color: #fff;
 }
 .badge-QUENTE { background: var(--quente); }
-.badge-MORNO { background: var(--morno); }
+.badge-MORNO { background: var(--morno-badge); }
 .badge-FRIO { background: var(--frio); }
-.badge-NC { background: #fff; color: var(--neutro); border: 1px dashed var(--neutro); }
+.badge-NC { background: var(--badge-nc-fundo); color: var(--neutro); border: 1px dashed var(--neutro); }
 .badge-ATIVA { background: var(--marca-claro); color: var(--marca); }
-.badge-FECHADA { background: #e7f3ec; color: var(--fechada); }
-.badge-PERDIDA { background: #eef0f2; color: var(--perdida); }
-.badge-alerta { background: var(--alerta-fundo); color: #9a5b00; border: 1px solid #ecd9bd; font-weight: 650; }
+.badge-FECHADA { background: var(--fechada-fundo); color: var(--fechada); }
+.badge-PERDIDA { background: var(--perdida-fundo); color: var(--perdida); }
+.badge-alerta { background: var(--alerta-fundo); color: var(--alerta); border: 1px solid var(--alerta-borda); font-weight: 650; }
 
 /* ===== Modal ===== */
 .modal-fundo {
@@ -171,8 +220,8 @@ table.tabela { width: 100%; border-collapse: collapse; font-size: 13px; }
 }
 .modal-fundo.oculta { display: none; }
 .modal-caixa {
-  background: #fff; border-radius: 10px; width: 100%; max-width: 860px;
-  padding: 22px 24px; box-shadow: 0 12px 40px rgba(0,0,0,.25);
+  background: var(--cartao); border-radius: 10px; width: 100%; max-width: 860px;
+  padding: 22px 24px; box-shadow: 0 12px 40px rgba(0,0,0,.4);
 }
 .modal-titulo { display: flex; justify-content: space-between; align-items: center; margin-bottom: 14px; }
 .modal-titulo h2 { font-size: 17px; }

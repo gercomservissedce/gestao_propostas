@@ -82,6 +82,20 @@ document.getElementById('abas').addEventListener('click', e => {
   if (e.target.dataset.tela) App.trocarTela(e.target.dataset.tela);
 });
 document.getElementById('btn-config').onclick = () => App.abrirConfig();
+
+function atualizarIconeTema() {
+  const escuro = document.documentElement.dataset.theme === 'dark';
+  const btn = document.getElementById('btn-tema');
+  btn.textContent = escuro ? '☀' : '🌙';
+  btn.title = escuro ? 'Mudar para tema claro' : 'Mudar para tema escuro';
+}
+document.getElementById('btn-tema').onclick = () => {
+  const novo = document.documentElement.dataset.theme === 'dark' ? 'light' : 'dark';
+  document.documentElement.dataset.theme = novo;
+  localStorage.setItem('gp-tema', novo);
+  atualizarIconeTema();
+};
+atualizarIconeTema();
 document.getElementById('modal-fundo').addEventListener('click', e => {
   if (e.target.id === 'modal-fundo') App.fecharModal();
 });
