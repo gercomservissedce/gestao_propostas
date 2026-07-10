@@ -41,6 +41,16 @@ const Analise = {
     const filiais = Object.values(porFilial).map(f => ({ ...f, conversao: f.total ? 100 * f.fechadas / f.total : 0 }))
       .sort((a, b) => b.total - a.total);
 
+    // ----- agrupamento por origem -----
+    const porOrigem = {};
+    for (const p of props) {
+      const g = porOrigem[p.origem || 'Sem origem'] ??= { nome: p.origem || 'Sem origem', total: 0, fechadas: 0, valorFechado: 0 };
+      g.total++;
+      if (p.status === 'FECHADA') { g.fechadas++; g.valorFechado += p.vlr_total || 0; }
+    }
+    const origens = Object.values(porOrigem).map(o => ({ ...o, conversao: o.total ? 100 * o.fechadas / o.total : 0 }))
+      .sort((a, b) => b.total - a.total);
+
     // ----- idade do pipeline (só ativas) -----
     const faixas = [
       { nome: 'até 30 dias', de: 0, ate: 30 },
@@ -169,6 +179,22 @@ const Analise = {
             </div>`).join('')}
           </div>
         </div>
+      </div>
+
+      <div class="cartao" style="margin-top:14px">
+        <div class="titulo-secao">Conversão por origem</div>
+        <table class="tabela">
+          <thead><tr><th>Origem</th><th class="num">Emitidas</th><th class="num">Fechadas</th><th class="num">Conversão</th><th class="num">Valor fechado</th></tr></thead>
+          <tbody>${origens.map(o => `
+            <tr>
+              <td>${esc(o.nome)}</td>
+              <td class="num">${o.total}</td>
+              <td class="num">${o.fechadas}</td>
+              <td class="num"><b>${fmtPct(o.conversao)}</b></td>
+              <td class="num">${fmtMoeda(o.valorFechado)}</td>
+            </tr>`).join('')}
+          </tbody>
+        </table>
       </div>
     `;
 
