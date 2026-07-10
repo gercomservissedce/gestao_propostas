@@ -52,10 +52,20 @@ const fmtMoeda = n => fmtBRL.format(Number(n) || 0);
 const fmtData = iso => { if (!iso) return '—'; const [a, m, d] = String(iso).slice(0, 10).split('-'); return `${d}/${m}/${a}`; };
 const esc = s => String(s ?? '').replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
 const CORES = { QUENTE: '#c93a2e', MORNO: '#b87503', FRIO: '#3e7cb1', 'NÃO CLASSIFICADA': '#8a8f98' };
+function custoProposta(p) {
+  return (p.custo_dep01 || 0) + (p.custo_dep02 || 0);
+}
+function roiProposta(p) {
+  if (!p.vlr_mensal) return null;
+  return custoProposta(p) / p.vlr_mensal;
+}
+function fmtMeses(v) {
+  return v == null ? '—' : `${v.toFixed(1).replace('.', ',')} meses`;
+}
 
 (async () => {
-  const [d, marcadas] = await Promise.all([
-    fetch('/api/dashboard').then(r => r.json()),
+  const [cfg, marcadas] = await Promise.all([
+    fetch('/api/config').then(r => r.json()),
     fetch('/api/propostas?status=ATIVA&marcadas=1').then(r => r.json()),
   ]);
   const hoje = new Date();
@@ -63,8 +73,24 @@ const CORES = { QUENTE: '#c93a2e', MORNO: '#b87503', FRIO: '#3e7cb1', 'NÃO CLAS
 
   const totalOriginal = marcadas.reduce((s, p) => s + (p.vlr_total || 0), 0);
   const totalMinimo = marcadas.reduce((s, p) => s + (p.valor_minimo_fechamento ?? p.vlr_total ?? 0), 0);
+  const totalCusto = marcadas.reduce((s, p) => s + custoProposta(p), 0);
+  const totalMensal = marcadas.reduce((s, p) => s + (p.vlr_mensal || 0), 0);
+  const roiAgregado = totalMensal ? totalCusto / totalMensal : null;
+
+  const previsaoPonderada = marcadas.reduce((s, p) => {
+    const prob = { QUENTE: cfg.prob_quente, MORNO: cfg.prob_morno, FRIO: cfg.prob_frio }[p.termometro] || 0;
+    return s + (p.vlr_total || 0) * prob / 100;
+  }, 0);
+
   const ordemTerm = ['QUENTE', 'MORNO', 'FRIO', 'NÃO CLASSIFICADA'];
-  const term = ordemTerm.map(n => d.termometro.find(t => t.nivel === n)).filter(Boolean);
+  const porTermometro = {};
+  for (const p of marcadas) {
+    const nivel = p.termometro || 'NÃO CLASSIFICADA';
+    const g = porTermometro[nivel] ??= { nivel, qtde: 0, valor: 0 };
+    g.qtde++;
+    g.valor += p.vlr_total || 0;
+  }
+  const term = ordemTerm.map(n => porTermometro[n]).filter(Boolean);
   const totalTerm = term.reduce((s, t) => s + t.valor, 0) || 1;
 
   document.getElementById('conteudo').innerHTML = `
@@ -75,10 +101,10 @@ const CORES = { QUENTE: '#c93a2e', MORNO: '#b87503', FRIO: '#3e7cb1', 'NÃO CLAS
 
     <h2>Resumo do pipeline</h2>
     <div class="kpis">
-      <div class="kpi"><div class="rotulo">Em negociação</div><div class="valor">${fmtMoeda(d.totalAtivas.valor)}</div><div>${d.totalAtivas.qtde} propostas ativas</div></div>
-      <div class="kpi"><div class="rotulo">Previsão ponderada</div><div class="valor">${fmtMoeda(d.previsaoPonderada)}</div><div>pela temperatura das negociações</div></div>
-      <div class="kpi"><div class="rotulo">Fechadas no mês</div><div class="valor">${fmtMoeda(d.fechadasMes.valor)}</div><div>${d.fechadasMes.qtde} proposta(s)</div></div>
-      <div class="kpi"><div class="rotulo">Taxa de conversão</div><div class="valor">${(d.taxaConversao).toFixed(1).replace('.', ',')}%</div><div>histórico geral</div></div>
+      <div class="kpi"><div class="rotulo">Em negociação</div><div class="valor">${fmtMoeda(totalOriginal)}</div><div>${marcadas.length} proposta(s) selecionada(s)</div></div>
+      <div class="kpi"><div class="rotulo">Previsão ponderada</div><div class="valor">${fmtMoeda(previsaoPonderada)}</div><div>pela temperatura das selecionadas</div></div>
+      <div class="kpi"><div class="rotulo">Custo total</div><div class="valor">${fmtMoeda(totalCusto)}</div><div>DEP 01 + DEP 02 das selecionadas</div></div>
+      <div class="kpi"><div class="rotulo">Taxa de ROI</div><div class="valor">${fmtMeses(roiAgregado)}</div><div>custo ÷ mensalidades das selecionadas</div></div>
     </div>
 
     <h2>Termômetro do pipeline</h2>
@@ -95,6 +121,8 @@ const CORES = { QUENTE: '#c93a2e', MORNO: '#b87503', FRIO: '#3e7cb1', 'NÃO CLAS
       <thead><tr>
         <th>Nº</th><th>Cliente</th><th>Filial</th><th>Consultor</th><th>Emissão</th><th>Term.</th>
         <th style="text-align:right">Valor original</th>
+        <th style="text-align:right">Custo</th>
+        <th style="text-align:right">ROI</th>
         <th style="text-align:right">Valor p/ fechamento</th>
         <th style="text-align:right">Redução</th>
       </tr></thead>
@@ -111,6 +139,8 @@ const CORES = { QUENTE: '#c93a2e', MORNO: '#b87503', FRIO: '#3e7cb1', 'NÃO CLAS
             <td>${fmtData(p.data_emissao)}</td>
             <td>${p.termometro ? `<span class="badge badge-${p.termometro}">${p.termometro}</span>` : '<span class="badge badge-NC">s/ classif.</span>'}</td>
             <td class="num">${fmtMoeda(p.vlr_total)}</td>
+            <td class="num">${fmtMoeda(custoProposta(p))}</td>
+            <td class="num">${fmtMeses(roiProposta(p))}</td>
             <td class="num">${fmtMoeda(minimo)}</td>
             <td class="num destaque">${fmtMoeda(dif)} (${pct.toFixed(1).replace('.', ',')}%)</td>
           </tr>`;
@@ -119,6 +149,8 @@ const CORES = { QUENTE: '#c93a2e', MORNO: '#b87503', FRIO: '#3e7cb1', 'NÃO CLAS
       <tfoot><tr>
         <td colspan="6">Total</td>
         <td class="num">${fmtMoeda(totalOriginal)}</td>
+        <td class="num">${fmtMoeda(totalCusto)}</td>
+        <td class="num">${fmtMeses(roiAgregado)}</td>
         <td class="num">${fmtMoeda(totalMinimo)}</td>
         <td class="num destaque">${fmtMoeda(totalOriginal - totalMinimo)} (${totalOriginal ? (100 * (totalOriginal - totalMinimo) / totalOriginal).toFixed(1).replace('.', ',') : '0,0'}%)</td>
       </tr></tfoot>
