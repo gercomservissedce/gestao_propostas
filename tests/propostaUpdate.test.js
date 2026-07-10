@@ -33,3 +33,11 @@ test('atualizarProposta retorna nada=true sem campos e changes=0 para id inexist
   assert.equal(idInexistente.nada, false);
   assert.equal(idInexistente.changes, 0);
 });
+
+test('atualizarProposta grava origem', () => {
+  const { db, id } = dbComProposta();
+  const r = atualizarProposta(db, id, { origem: 'LEAD' }, '2026-07-10');
+  assert.equal(r.changes, 1);
+  const p = db.prepare('SELECT origem FROM propostas WHERE id = ?').get(id);
+  assert.equal(p.origem, 'LEAD');
+});

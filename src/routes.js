@@ -40,6 +40,7 @@ function criarRotas(db) {
     if (q.consultor_id) { cond.push('p.consultor_id = ?'); params.push(Number(q.consultor_id)); }
     if (q.status) { cond.push('p.status = ?'); params.push(q.status); }
     if (q.etapa) { cond.push('p.etapa = ?'); params.push(q.etapa); }
+    if (q.origem) { cond.push('p.origem = ?'); params.push(q.origem); }
     if (q.termometro === 'NULA') cond.push('p.termometro IS NULL');
     else if (q.termometro) { cond.push('p.termometro = ?'); params.push(q.termometro); }
     if (q.marcadas === '1') cond.push('p.marcada_relatorio = 1');

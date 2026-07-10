@@ -138,3 +138,21 @@ test('POST /consultores/importar-atualizacoes aplica mudanças da planilha', asy
   assert.equal(p.status, 'FECHADA');
   assert.equal(p.termometro, 'QUENTE');
 });
+
+test('POST /propostas persiste origem; GET /propostas filtra por origem', async () => {
+  const { server, base } = subirApp();
+  after(() => server.close());
+
+  const criar = (numero, cliente, origem) => fetch(`${base}/api/propostas`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ filial_id: 1, numero, data_emissao: '2026-07-10', cliente, origem }),
+  });
+  await criar('900', 'COND LEAD', 'LEAD');
+  await criar('901', 'COND INDICACAO', 'INDICAÇÃO');
+
+  const soLead = await (await fetch(`${base}/api/propostas?origem=LEAD`)).json();
+  assert.equal(soLead.length, 1);
+  assert.equal(soLead[0].cliente, 'COND LEAD');
+  assert.equal(soLead[0].origem, 'LEAD');
+});

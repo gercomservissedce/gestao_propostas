@@ -72,6 +72,7 @@ const MIGRACOES_PROPOSTAS = {
   roi_dep01: 'REAL',
   custo_dep02: 'REAL',
   roi_dep02: 'REAL',
+  origem: 'TEXT',
 };
 
 function migrar(db) {
