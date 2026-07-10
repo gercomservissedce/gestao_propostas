@@ -22,6 +22,9 @@ Dê dois cliques em **`Iniciar Gestão de Propostas.bat`**. O navegador abre em
   Clique em qualquer linha para abrir a proposta. O formulário inclui os custos fixos
   (DEP 01 e DEP 02, com o ROI aplicado a cada um), preenchidos manualmente.
 - **Consultores** — ranking de desempenho; clique no consultor para ver as propostas dele.
+  Selecione um consultor (rádio na tabela) para **gerar uma planilha** com as propostas
+  ativas dele (para enviar por e-mail/WhatsApp) e depois **importar atualizações** quando
+  ele devolver a planilha preenchida com status, etapa, termômetro e um contato novo.
 - **Análise** — o cenário em linguagem simples: onde atuar em ordem de prioridade,
   propostas por consultor com a situação de cada uma, conversão por filial e idade do pipeline.
 - **Relatório Diretoria** — marque as propostas, informe o valor mínimo de fechamento
