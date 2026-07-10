@@ -21,10 +21,16 @@ Dê dois cliques em **`Iniciar Gestão de Propostas.bat`**. O navegador abre em
 - **Propostas** — lançar, editar, registrar contatos (follow-up), fechar ou marcar como perdida.
   Clique em qualquer linha para abrir a proposta.
 - **Consultores** — ranking de desempenho; clique no consultor para ver as propostas dele.
+- **Análise** — o cenário em linguagem simples: onde atuar em ordem de prioridade,
+  propostas por consultor com a situação de cada uma, conversão por filial e idade do pipeline.
 - **Relatório Diretoria** — marque as propostas, informe o valor mínimo de fechamento
   e clique em "Gerar PDF". O arquivo fica em `relatorios/`.
+- **🌙/☀ Tema** — alterna entre claro e escuro; a preferência fica salva no navegador.
 - **⚙ Configurações** — probabilidades do termômetro (quente/morno/frio), prazo do alerta
   de proposta esquecida e reimportação da planilha (adiciona só propostas novas, sem duplicar).
+
+Ao marcar uma proposta como **Fechada**, a data de fechamento e a etapa são preenchidas
+automaticamente (a data pode ser ajustada antes de salvar). Reabrir a proposta limpa as duas.
 
 ## Requisitos
 

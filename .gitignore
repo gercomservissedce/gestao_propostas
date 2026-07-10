@@ -3,3 +3,4 @@ dados/
 relatorios/
 ~$*
 *.log
+.claude/
