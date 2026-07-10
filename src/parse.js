@@ -51,4 +51,12 @@ function mapEtapa(s) {
   return v || null;
 }
 
-module.exports = { toIsoDate, toNumber, mapStatus, mapEtapa };
+// SQLite LIKE só ignora caixa em caracteres ASCII: "condomínio" (acentuado,
+// minúsculo) não bate com "CONDOMÍNIO" no banco. Normaliza para comparar em JS.
+function normalizar(s) {
+  return String(s ?? '')
+    .normalize('NFD').replace(/[̀-ͯ]/g, '')
+    .toLowerCase();
+}
+
+module.exports = { toIsoDate, toNumber, mapStatus, mapEtapa, normalizar };

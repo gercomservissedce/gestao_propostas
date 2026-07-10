@@ -2,6 +2,7 @@ const express = require('express');
 const path = require('node:path');
 const { importarPlanilha } = require('./importer');
 const { getConfig, dashboardStats, consultorStats } = require('./stats');
+const { normalizar } = require('./parse');
 
 const CAMINHO_PLANILHA = path.join(__dirname, '..', 'Modelo', 'RELAÇÃO DAS PROPOSTAS CONDOMINIOS.xlsx');
 
@@ -33,10 +34,8 @@ function criarRotas(db) {
     const q = req.query;
     const cond = [];
     const params = [];
-    if (q.busca) {
-      cond.push('(p.cliente LIKE ? OR p.numero LIKE ?)');
-      params.push(`%${q.busca}%`, `%${q.busca}%`);
-    }
+    // "busca" fica de fora do SQL: LIKE do SQLite não ignora caixa em acentos
+    // (ver normalizar() acima), então o texto é filtrado em JS depois da query.
     if (q.filial_id) { cond.push('p.filial_id = ?'); params.push(Number(q.filial_id)); }
     if (q.consultor_id) { cond.push('p.consultor_id = ?'); params.push(Number(q.consultor_id)); }
     if (q.status) { cond.push('p.status = ?'); params.push(q.status); }
@@ -45,7 +44,7 @@ function criarRotas(db) {
     else if (q.termometro) { cond.push('p.termometro = ?'); params.push(q.termometro); }
     if (q.marcadas === '1') cond.push('p.marcada_relatorio = 1');
     const where = cond.length ? 'WHERE ' + cond.join(' AND ') : '';
-    const rows = db.prepare(`
+    let rows = db.prepare(`
       SELECT p.*, c.nome consultor, f.estado filial, f.codigo filial_codigo,
         (SELECT MAX(ct.data) FROM contatos ct WHERE ct.proposta_id = p.id) ultima_data_contato,
         CAST(julianday('now','localtime') - julianday(
@@ -57,6 +56,10 @@ function criarRotas(db) {
       ${where}
       ORDER BY p.data_emissao DESC, p.id DESC
     `).all(...params);
+    if (q.busca) {
+      const alvo = normalizar(q.busca);
+      rows = rows.filter(p => normalizar(p.cliente).includes(alvo) || normalizar(p.numero).includes(alvo));
+    }
     res.json(rows);
   });
 

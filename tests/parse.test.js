@@ -1,6 +1,6 @@
 const { test } = require('node:test');
 const assert = require('node:assert');
-const { toIsoDate, toNumber, mapStatus, mapEtapa } = require('../src/parse');
+const { toIsoDate, toNumber, mapStatus, mapEtapa, normalizar } = require('../src/parse');
 
 test('toIsoDate converte Date para ISO', () => {
   assert.equal(toIsoDate(new Date(2025, 1, 5)), '2025-02-05');
@@ -49,4 +49,14 @@ test('mapEtapa normaliza etapa', () => {
   assert.equal(mapEtapa('AGUARDANDO VISITA'), 'AGUARDANDO VISITA');
   assert.equal(mapEtapa(''), null);
   assert.equal(mapEtapa(null), null);
+});
+
+test('normalizar ignora acento e caixa (regressão da busca)', () => {
+  // "condomínio" minúsculo acentuado deve casar com "CONDOMÍNIO" maiúsculo,
+  // o que o LIKE do SQLite não faz nativamente.
+  assert.equal(normalizar('CONDOMÍNIO'), normalizar('condomínio'));
+  assert.equal(normalizar('condomínio'), 'condominio');
+  assert.equal(normalizar('SÃO PAULO'), 'sao paulo');
+  assert.equal(normalizar(null), '');
+  assert.equal(normalizar(undefined), '');
 });
