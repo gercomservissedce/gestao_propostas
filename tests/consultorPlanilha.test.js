@@ -38,3 +38,71 @@ test('gerarPlanilhaConsultor inclui só propostas ATIVA do consultor pedido', ()
   assert.equal(linhas[0]['Status'], 'ATIVA');
   assert.equal(linhas[0]['Termômetro'], 'QUENTE');
 });
+
+const { importarAtualizacoesConsultor, COLUNAS_PROPOSTAS } = require('../src/consultorPlanilha');
+
+function planilhaAtualizacao(linhas) {
+  const wb = XLSX.utils.book_new();
+  const aoa = [COLUNAS_PROPOSTAS, ...linhas];
+  XLSX.utils.book_append_sheet(wb, XLSX.utils.aoa_to_sheet(aoa), 'PROPOSTAS');
+  return XLSX.write(wb, { type: 'buffer', bookType: 'xlsx' });
+}
+
+test('importarAtualizacoesConsultor atualiza status/etapa/termômetro e registra contato', () => {
+  const { db, consultorA } = dbComPropostas();
+  const idAtiva = db.prepare("SELECT id FROM propostas WHERE numero = '1'").get().id;
+
+  const buffer = planilhaAtualizacao([
+    [idAtiva, '1', 'COND ATIVA', 'CEARÁ', 1000, 'FECHADA', 'FECHADO', 'MORNO',
+      '10/07/2026', 'Cliente confirmou fechamento', '20/07/2026'],
+    [999999, '999', 'INEXISTENTE', '', 0, 'ATIVA', '', '', '', '', ''],
+  ]);
+
+  const r = importarAtualizacoesConsultor(db, buffer, '2026-07-10');
+  assert.equal(r.atualizadas, 1);
+  assert.equal(r.contatosAdicionados, 1);
+  assert.equal(r.naoEncontradas, 1);
+
+  const p = db.prepare(
+    'SELECT status, etapa, termometro, data_fechamento, proxima_data_contato FROM propostas WHERE id = ?'
+  ).get(idAtiva);
+  assert.equal(p.status, 'FECHADA');
+  assert.equal(p.etapa, 'FECHADO');
+  assert.equal(p.termometro, 'MORNO');
+  assert.equal(p.data_fechamento, '2026-07-10');
+  assert.equal(p.proxima_data_contato, '2026-07-20');
+
+  const contato = db.prepare(
+    'SELECT data, anotacao, proximo_contato FROM contatos WHERE proposta_id = ?'
+  ).get(idAtiva);
+  assert.equal(contato.data, '2026-07-10');
+  assert.equal(contato.anotacao, 'Cliente confirmou fechamento');
+  assert.equal(contato.proximo_contato, '2026-07-20');
+});
+
+test('importarAtualizacoesConsultor ignora Status fora da lista aceita', () => {
+  const { db, consultorA } = dbComPropostas();
+  const idAtiva = db.prepare("SELECT id FROM propostas WHERE numero = '1'").get().id;
+  const antes = db.prepare('SELECT status FROM propostas WHERE id = ?').get(idAtiva);
+
+  const buffer = planilhaAtualizacao([
+    [idAtiva, '1', 'COND ATIVA', 'CEARÁ', 1000, 'TALVEZ', '', '', '', '', ''],
+  ]);
+  importarAtualizacoesConsultor(db, buffer, '2026-07-10');
+
+  const depois = db.prepare('SELECT status FROM propostas WHERE id = ?').get(idAtiva);
+  assert.equal(depois.status, antes.status);
+});
+
+test('importarAtualizacoesConsultor limpa termômetro quando a célula vem vazia', () => {
+  const { db, consultorA } = dbComPropostas();
+  const idAtiva = db.prepare("SELECT id FROM propostas WHERE numero = '1'").get().id;
+
+  const buffer = planilhaAtualizacao([
+    [idAtiva, '1', 'COND ATIVA', 'CEARÁ', 1000, '', '', '', '', '', ''],
+  ]);
+  importarAtualizacoesConsultor(db, buffer, '2026-07-10');
+
+  const depois = db.prepare('SELECT termometro FROM propostas WHERE id = ?').get(idAtiva);
+  assert.equal(depois.termometro, null);
+});

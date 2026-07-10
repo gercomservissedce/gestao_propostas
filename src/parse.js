@@ -5,9 +5,11 @@ function pad2(n) {
 // Epoch do Excel: 1899-12-30 (serial 0)
 const EXCEL_EPOCH_UTC = Date.UTC(1899, 11, 30);
 
-// Datas da planilha vêm como serial do Excel (raw), Date ou texto M/D/YY
-function toIsoDate(v) {
-  if (v == null) return null;
+// Conversão de serial do Excel / objeto Date para ISO — comum a toIsoDate (texto
+// m/d/aaaa da planilha legada) e ao parser de data da planilha do consultor (texto
+// dd/mm/aaaa, em src/consultorPlanilha.js). undefined sinaliza "não é serial nem
+// Date", para o chamador tratar como texto.
+function serialExcelParaIso(v) {
   if (typeof v === 'number') {
     if (v <= 0) return null;
     const d = new Date(EXCEL_EPOCH_UTC + Math.round(v) * 86400000);
@@ -15,11 +17,18 @@ function toIsoDate(v) {
   }
   if (v instanceof Date) {
     if (isNaN(v.getTime())) return null;
-    // Datas lidas do xlsx podem vir deslocadas algumas horas; arredonda para o dia mais próximo
     const dias = Math.round((v.getTime() - EXCEL_EPOCH_UTC) / 86400000);
     const d = new Date(EXCEL_EPOCH_UTC + dias * 86400000);
     return `${d.getUTCFullYear()}-${pad2(d.getUTCMonth() + 1)}-${pad2(d.getUTCDate())}`;
   }
+  return undefined;
+}
+
+// Datas da planilha vêm como serial do Excel (raw), Date ou texto M/D/YY
+function toIsoDate(v) {
+  if (v == null) return null;
+  const serial = serialExcelParaIso(v);
+  if (serial !== undefined) return serial;
   const s = String(v).trim();
   if (!s) return null;
   const m = s.match(/^(\d{1,2})\/(\d{1,2})\/(\d{2,4})$/);
@@ -76,4 +85,4 @@ function sincronizarFechamento(dados, hoje) {
   return dados;
 }
 
-module.exports = { toIsoDate, toNumber, mapStatus, mapEtapa, normalizar, sincronizarFechamento };
+module.exports = { toIsoDate, toNumber, mapStatus, mapEtapa, normalizar, sincronizarFechamento, serialExcelParaIso };
