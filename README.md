@@ -1,0 +1,40 @@
+# Gestão de Propostas
+
+Sistema local para acompanhamento de propostas comerciais: dashboard com termômetro,
+controle de follow-up, análise por consultor e relatório em PDF para a diretoria.
+
+## Como iniciar
+
+Dê dois cliques em **`Iniciar Gestão de Propostas.bat`**. O navegador abre em
+`http://localhost:3050`. Para encerrar, feche a janela preta do terminal.
+
+## Onde ficam os dados
+
+- Banco de dados: `dados/propostas.db` (backup = copiar esse arquivo; a pasta já está no Google Drive)
+- PDFs gerados: `relatorios/`
+- Planilha de origem: `Modelo/RELAÇÃO DAS PROPOSTAS CONDOMINIOS.xlsx`
+
+## Uso no dia a dia
+
+- **Dashboard** — visão geral: valor em negociação, previsão ponderada de fechamento,
+  termômetro do pipeline e as propostas esquecidas (sem contato há mais de 30 dias).
+- **Propostas** — lançar, editar, registrar contatos (follow-up), fechar ou marcar como perdida.
+  Clique em qualquer linha para abrir a proposta.
+- **Consultores** — ranking de desempenho; clique no consultor para ver as propostas dele.
+- **Relatório Diretoria** — marque as propostas, informe o valor mínimo de fechamento
+  e clique em "Gerar PDF". O arquivo fica em `relatorios/`.
+- **⚙ Configurações** — probabilidades do termômetro (quente/morno/frio), prazo do alerta
+  de proposta esquecida e reimportação da planilha (adiciona só propostas novas, sem duplicar).
+
+## Requisitos
+
+- Node.js instalado
+- Google Chrome ou Microsoft Edge (para gerar o PDF)
+
+## Comandos (para manutenção)
+
+```
+npm install     # instalar dependências (primeira vez em outra máquina)
+npm start       # iniciar o servidor sem o .bat
+npm test        # rodar os testes automatizados
+```
