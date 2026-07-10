@@ -1,0 +1,141 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8">
+<title>Relatório para a Diretoria — Gestão de Propostas</title>
+<style>
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body {
+    font-family: "Segoe UI", system-ui, sans-serif;
+    color: #1c2733; font-size: 12px; line-height: 1.45;
+    padding: 28px 34px; max-width: 1000px; margin: 0 auto;
+  }
+  .cabecalho { border-bottom: 3px solid #17435e; padding-bottom: 12px; margin-bottom: 18px; }
+  .cabecalho h1 { font-size: 20px; color: #17435e; }
+  .cabecalho .sub { color: #5a6774; font-size: 12px; margin-top: 2px; }
+  h2 {
+    font-size: 11px; text-transform: uppercase; letter-spacing: 1.2px;
+    color: #5a6774; margin: 20px 0 8px;
+  }
+  .kpis { display: flex; gap: 14px; }
+  .kpi { flex: 1; border: 1px solid #e3e7eb; border-radius: 8px; padding: 10px 14px; }
+  .kpi .rotulo { font-size: 10px; text-transform: uppercase; letter-spacing: .8px; color: #5a6774; }
+  .kpi .valor { font-size: 19px; font-weight: 700; font-variant-numeric: tabular-nums; margin-top: 2px; }
+  table { width: 100%; border-collapse: collapse; font-size: 11.5px; }
+  th {
+    text-align: left; font-size: 9.5px; text-transform: uppercase; letter-spacing: .8px;
+    color: #5a6774; padding: 6px 8px; border-bottom: 2px solid #e3e7eb;
+  }
+  td { padding: 6px 8px; border-bottom: 1px solid #eef0f2; vertical-align: top; }
+  .num { text-align: right; font-variant-numeric: tabular-nums; white-space: nowrap; }
+  .destaque { color: #c93a2e; font-weight: 650; }
+  tfoot td { font-weight: 700; border-top: 2px solid #17435e; border-bottom: none; }
+  .badge { font-size: 9.5px; font-weight: 700; padding: 1px 7px; border-radius: 10px; color: #fff; }
+  .badge-QUENTE { background: #c93a2e; }
+  .badge-MORNO { background: #b87503; }
+  .badge-FRIO { background: #3e7cb1; }
+  .badge-NC { color: #8a8f98; border: 1px dashed #8a8f98; }
+  .regua { display: flex; height: 22px; border-radius: 5px; overflow: hidden; border: 1px solid #e3e7eb; margin-bottom: 6px; }
+  .regua div { border-right: 2px solid #fff; min-width: 2px; }
+  .legenda { display: flex; gap: 16px; font-size: 11px; color: #5a6774; flex-wrap: wrap; }
+  .legenda .bolinha { display: inline-block; width: 8px; height: 8px; border-radius: 2px; margin-right: 4px; }
+  .rodape { margin-top: 26px; padding-top: 10px; border-top: 1px solid #e3e7eb; color: #8a949e; font-size: 10px; }
+  .nota { background: #eaf1f6; border-radius: 6px; padding: 10px 14px; margin-top: 8px; font-size: 11.5px; }
+  @media print { body { padding: 0; } }
+</style>
+</head>
+<body>
+<div id="conteudo">Carregando…</div>
+<script>
+const fmtBRL = new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' });
+const fmtMoeda = n => fmtBRL.format(Number(n) || 0);
+const fmtData = iso => { if (!iso) return '—'; const [a, m, d] = String(iso).slice(0, 10).split('-'); return `${d}/${m}/${a}`; };
+const esc = s => String(s ?? '').replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+const CORES = { QUENTE: '#c93a2e', MORNO: '#b87503', FRIO: '#3e7cb1', 'NÃO CLASSIFICADA': '#8a8f98' };
+
+(async () => {
+  const [d, marcadas] = await Promise.all([
+    fetch('/api/dashboard').then(r => r.json()),
+    fetch('/api/propostas?status=ATIVA&marcadas=1').then(r => r.json()),
+  ]);
+  const hoje = new Date();
+  const dataStr = `${String(hoje.getDate()).padStart(2,'0')}/${String(hoje.getMonth()+1).padStart(2,'0')}/${hoje.getFullYear()}`;
+
+  const totalOriginal = marcadas.reduce((s, p) => s + (p.vlr_total || 0), 0);
+  const totalMinimo = marcadas.reduce((s, p) => s + (p.valor_minimo_fechamento ?? p.vlr_total ?? 0), 0);
+  const ordemTerm = ['QUENTE', 'MORNO', 'FRIO', 'NÃO CLASSIFICADA'];
+  const term = ordemTerm.map(n => d.termometro.find(t => t.nivel === n)).filter(Boolean);
+  const totalTerm = term.reduce((s, t) => s + t.valor, 0) || 1;
+
+  document.getElementById('conteudo').innerHTML = `
+    <div class="cabecalho">
+      <h1>Relatório para a Diretoria — Propostas Comerciais</h1>
+      <div class="sub">Viabilização de fechamentos · emitido em ${dataStr}</div>
+    </div>
+
+    <h2>Resumo do pipeline</h2>
+    <div class="kpis">
+      <div class="kpi"><div class="rotulo">Em negociação</div><div class="valor">${fmtMoeda(d.totalAtivas.valor)}</div><div>${d.totalAtivas.qtde} propostas ativas</div></div>
+      <div class="kpi"><div class="rotulo">Previsão ponderada</div><div class="valor">${fmtMoeda(d.previsaoPonderada)}</div><div>pela temperatura das negociações</div></div>
+      <div class="kpi"><div class="rotulo">Fechadas no mês</div><div class="valor">${fmtMoeda(d.fechadasMes.valor)}</div><div>${d.fechadasMes.qtde} proposta(s)</div></div>
+      <div class="kpi"><div class="rotulo">Taxa de conversão</div><div class="valor">${(d.taxaConversao).toFixed(1).replace('.', ',')}%</div><div>histórico geral</div></div>
+    </div>
+
+    <h2>Termômetro do pipeline</h2>
+    <div class="regua">
+      ${term.map(t => `<div style="flex:${(t.valor / totalTerm).toFixed(4)};background:${CORES[t.nivel]}"></div>`).join('')}
+    </div>
+    <div class="legenda">
+      ${term.map(t => `<span><span class="bolinha" style="background:${CORES[t.nivel]}"></span>${t.nivel.toLowerCase()}: <b>${t.qtde}</b> · ${fmtMoeda(t.valor)}</span>`).join('')}
+    </div>
+
+    <h2>Propostas para viabilização (${marcadas.length})</h2>
+    ${marcadas.length ? `
+    <table>
+      <thead><tr>
+        <th>Nº</th><th>Cliente</th><th>Filial</th><th>Consultor</th><th>Emissão</th><th>Term.</th>
+        <th style="text-align:right">Valor original</th>
+        <th style="text-align:right">Valor p/ fechamento</th>
+        <th style="text-align:right">Redução</th>
+      </tr></thead>
+      <tbody>
+        ${marcadas.map(p => {
+          const minimo = p.valor_minimo_fechamento ?? p.vlr_total ?? 0;
+          const dif = (p.vlr_total || 0) - minimo;
+          const pct = p.vlr_total ? (100 * dif / p.vlr_total) : 0;
+          return `<tr>
+            <td>${esc(p.numero)}</td>
+            <td>${esc(p.cliente)}</td>
+            <td>${esc(p.filial || '')}</td>
+            <td>${esc((p.consultor || '—').split(' ').slice(0, 2).join(' '))}</td>
+            <td>${fmtData(p.data_emissao)}</td>
+            <td>${p.termometro ? `<span class="badge badge-${p.termometro}">${p.termometro}</span>` : '<span class="badge badge-NC">s/ classif.</span>'}</td>
+            <td class="num">${fmtMoeda(p.vlr_total)}</td>
+            <td class="num">${fmtMoeda(minimo)}</td>
+            <td class="num destaque">${fmtMoeda(dif)} (${pct.toFixed(1).replace('.', ',')}%)</td>
+          </tr>`;
+        }).join('')}
+      </tbody>
+      <tfoot><tr>
+        <td colspan="6">Total</td>
+        <td class="num">${fmtMoeda(totalOriginal)}</td>
+        <td class="num">${fmtMoeda(totalMinimo)}</td>
+        <td class="num destaque">${fmtMoeda(totalOriginal - totalMinimo)} (${totalOriginal ? (100 * (totalOriginal - totalMinimo) / totalOriginal).toFixed(1).replace('.', ',') : '0,0'}%)</td>
+      </tr></tfoot>
+    </table>
+    <div class="nota">
+      <b>Solicitação:</b> aprovação dos valores mínimos de fechamento acima, que representam uma redução total de
+      <b>${fmtMoeda(totalOriginal - totalMinimo)}</b> sobre os valores originais para viabilizar
+      <b>${fmtMoeda(totalMinimo)}</b> em novos contratos.
+    </div>` : '<p>Nenhuma proposta marcada para viabilização.</p>'}
+
+    <div class="rodape">Gerado pelo sistema Gestão de Propostas em ${dataStr}.</div>
+  `;
+  document.title = `Relatório Diretoria ${dataStr}`;
+  const pronto = document.createElement('div');
+  pronto.id = 'pronto';
+  document.body.appendChild(pronto);
+})();
+</script>
+</body>
+</html>
