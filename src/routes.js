@@ -17,6 +17,7 @@ const CAMPOS_PROPOSTA = [
   'vlr_venda', 'vlr_instalacao', 'vlr_serv_especial', 'vlr_total', 'consultor_id',
   'descricao', 'observacao', 'termometro', 'proxima_data_contato',
   'marcada_relatorio', 'valor_minimo_fechamento',
+  'custo_dep01', 'roi_dep01', 'custo_dep02', 'roi_dep02',
 ];
 
 function criarRotas(db) {

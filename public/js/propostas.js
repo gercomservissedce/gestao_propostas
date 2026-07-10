@@ -5,6 +5,10 @@ const CAMPOS_VALOR = [
   ['vlr_venda', 'Vlr. venda'], ['vlr_instalacao', 'Vlr. instalação'],
   ['vlr_serv_especial', 'Vlr. serv. especial'], ['vlr_total', 'Vlr. total'],
 ];
+const CAMPOS_CUSTO = [
+  ['custo_dep01', 'DEP 01 (R$)'], ['roi_dep01', 'ROI DEP 01'],
+  ['custo_dep02', 'DEP 02 (R$)'], ['roi_dep02', 'ROI DEP 02'],
+];
 
 const Propostas = {
   filtros: { busca: '', filial_id: '', consultor_id: '', status: 'ATIVA', etapa: '', termometro: '' },
@@ -121,7 +125,7 @@ const Propostas = {
       ]);
     }
     const nova = !p;
-    p = p || {};
+    p = p || { roi_dep01: 6, roi_dep02: 8 };
     const caixa = document.getElementById('modal-caixa');
 
     const campoValor = (nome, rotulo) => `
@@ -159,6 +163,8 @@ const Propostas = {
         <div class="campo"><label>Data fechamento</label><input type="date" id="f-data_fechamento" value="${p.data_fechamento || ''}"></div>
         <div class="campo"><label>Próximo contato</label><input type="date" id="f-proxima_data_contato" value="${p.proxima_data_contato || ''}"></div>
         ${CAMPOS_VALOR.map(([n, r]) => campoValor(n, r)).join('')}
+        <div class="col-4 titulo-secao" style="margin-top:4px">Custos fixos</div>
+        ${CAMPOS_CUSTO.map(([n, r]) => campoValor(n, r)).join('')}
         <div class="campo col-2"><label>Descrição</label><textarea id="f-descricao">${esc(p.descricao || '')}</textarea></div>
         <div class="campo col-2"><label>Observação</label><textarea id="f-observacao">${esc(p.observacao || '')}</textarea></div>
       </div>
@@ -224,6 +230,11 @@ const Propostas = {
       descricao: document.getElementById('f-descricao').value.trim(),
       observacao: document.getElementById('f-observacao').value.trim(),
       ...Object.fromEntries(CAMPOS_VALOR.map(([n]) => [n, Number(document.getElementById(`f-${n}`).value) || 0])),
+      // custo/ROI vazios seguem como '' e o servidor grava NULL (não digitado ≠ zero)
+      ...Object.fromEntries(CAMPOS_CUSTO.map(([n]) => {
+        const v = document.getElementById(`f-${n}`).value;
+        return [n, v === '' ? '' : Number(v)];
+      })),
     });
 
     document.getElementById('f-salvar').onclick = async () => {

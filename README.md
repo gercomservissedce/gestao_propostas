@@ -19,7 +19,8 @@ Dê dois cliques em **`Iniciar Gestão de Propostas.bat`**. O navegador abre em
 - **Dashboard** — visão geral: valor em negociação, previsão ponderada de fechamento,
   termômetro do pipeline e as propostas esquecidas (sem contato há mais de 30 dias).
 - **Propostas** — lançar, editar, registrar contatos (follow-up), fechar ou marcar como perdida.
-  Clique em qualquer linha para abrir a proposta.
+  Clique em qualquer linha para abrir a proposta. O formulário inclui os custos fixos
+  (DEP 01 e DEP 02, com o ROI aplicado a cada um), preenchidos manualmente.
 - **Consultores** — ranking de desempenho; clique no consultor para ver as propostas dele.
 - **Análise** — o cenário em linguagem simples: onde atuar em ordem de prioridade,
   propostas por consultor com a situação de cada uma, conversão por filial e idade do pipeline.

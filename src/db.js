@@ -38,6 +38,10 @@ CREATE TABLE IF NOT EXISTS propostas (
   proxima_data_contato TEXT,
   marcada_relatorio INTEGER NOT NULL DEFAULT 0,
   valor_minimo_fechamento REAL,
+  custo_dep01 REAL,
+  roi_dep01 REAL,
+  custo_dep02 REAL,
+  roi_dep02 REAL,
   criada_em TEXT NOT NULL DEFAULT (date('now')),
   UNIQUE (filial_id, numero)
 );
@@ -61,11 +65,30 @@ const CONFIG_PADRAO = {
   dias_alerta: '30',
 };
 
+// Colunas acrescentadas após a criação do banco original: CREATE TABLE IF NOT
+// EXISTS não altera tabela existente, então bancos antigos precisam de ALTER.
+const MIGRACOES_PROPOSTAS = {
+  custo_dep01: 'REAL',
+  roi_dep01: 'REAL',
+  custo_dep02: 'REAL',
+  roi_dep02: 'REAL',
+};
+
+function migrar(db) {
+  const existentes = new Set(
+    db.prepare('PRAGMA table_info(propostas)').all().map(c => c.name)
+  );
+  for (const [coluna, tipo] of Object.entries(MIGRACOES_PROPOSTAS)) {
+    if (!existentes.has(coluna)) db.exec(`ALTER TABLE propostas ADD COLUMN ${coluna} ${tipo}`);
+  }
+}
+
 function openDb(caminho) {
   const db = new Database(caminho);
   db.pragma('journal_mode = WAL');
   db.pragma('foreign_keys = ON');
   db.exec(SCHEMA_SQL);
+  migrar(db);
   const ins = db.prepare('INSERT OR IGNORE INTO config (chave, valor) VALUES (?, ?)');
   for (const [chave, valor] of Object.entries(CONFIG_PADRAO)) ins.run(chave, valor);
   return db;
