@@ -3,6 +3,7 @@ const path = require('node:path');
 const { importarPlanilha } = require('./importer');
 const { getConfig, dashboardStats, consultorStats } = require('./stats');
 const { normalizar, sincronizarFechamento } = require('./parse');
+const { atualizarProposta, CAMPOS_PROPOSTA } = require('./propostaUpdate');
 
 function hojeLocalIso() {
   const d = new Date();
@@ -10,15 +11,6 @@ function hojeLocalIso() {
 }
 
 const CAMINHO_PLANILHA = path.join(__dirname, '..', 'Modelo', 'RELAÇÃO DAS PROPOSTAS CONDOMINIOS.xlsx');
-
-const CAMPOS_PROPOSTA = [
-  'filial_id', 'numero', 'data_emissao', 'cliente', 'tipo_negocio', 'status', 'etapa',
-  'data_fechamento', 'vlr_comodato', 'vlr_serv_adicional', 'vlr_mensal', 'vlr_taxa_adesao',
-  'vlr_venda', 'vlr_instalacao', 'vlr_serv_especial', 'vlr_total', 'consultor_id',
-  'descricao', 'observacao', 'termometro', 'proxima_data_contato',
-  'marcada_relatorio', 'valor_minimo_fechamento',
-  'custo_dep01', 'roi_dep01', 'custo_dep02', 'roi_dep02',
-];
 
 function criarRotas(db) {
   const r = express.Router();
@@ -102,14 +94,9 @@ function criarRotas(db) {
   });
 
   r.put('/propostas/:id', (req, res) => {
-    const b = sincronizarFechamento(req.body, hojeLocalIso());
-    const cols = CAMPOS_PROPOSTA.filter(c => b[c] !== undefined);
-    if (!cols.length) return res.status(400).json({ erro: 'Nada para atualizar' });
-    const stmt = db.prepare(
-      `UPDATE propostas SET ${cols.map(c => `${c} = ?`).join(', ')} WHERE id = ?`
-    );
-    const info = stmt.run(...cols.map(c => b[c] === '' ? null : b[c]), req.params.id);
-    if (!info.changes) return res.status(404).json({ erro: 'Proposta não encontrada' });
+    const { changes, nada } = atualizarProposta(db, req.params.id, req.body, hojeLocalIso());
+    if (nada) return res.status(400).json({ erro: 'Nada para atualizar' });
+    if (!changes) return res.status(404).json({ erro: 'Proposta não encontrada' });
     res.json({ ok: true });
   });
 
