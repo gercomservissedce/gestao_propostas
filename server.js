@@ -19,7 +19,7 @@ if (total === 0 && fs.existsSync(CAMINHO_PLANILHA)) {
 }
 
 const app = express();
-app.use(express.json());
+app.use(express.json({ limit: '10mb' }));
 app.use('/api', criarRotas(db));
 app.use(express.static(path.join(__dirname, 'public')));
 app.use('/relatorios', express.static(path.join(__dirname, 'relatorios')));

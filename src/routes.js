@@ -4,6 +4,7 @@ const { importarPlanilha } = require('./importer');
 const { getConfig, dashboardStats, consultorStats } = require('./stats');
 const { normalizar, sincronizarFechamento } = require('./parse');
 const { atualizarProposta, CAMPOS_PROPOSTA } = require('./propostaUpdate');
+const { gerarPlanilhaConsultor, importarAtualizacoesConsultor } = require('./consultorPlanilha');
 
 function hojeLocalIso() {
   const d = new Date();
@@ -129,6 +130,26 @@ function criarRotas(db) {
 
   r.get('/consultores/stats', (req, res) => {
     res.json(consultorStats(db, filtrosDaQuery(req.query)));
+  });
+
+  r.get('/consultores/:id/exportar', (req, res) => {
+    const consultor = db.prepare('SELECT * FROM consultores WHERE id = ?').get(req.params.id);
+    if (!consultor) return res.status(404).json({ erro: 'Consultor não encontrado' });
+    const buffer = gerarPlanilhaConsultor(db, consultor.id);
+    const nomeArquivo = `${consultor.nome.replace(/[^\w\-À-ÿ ]/g, '')}-propostas-${hojeLocalIso()}.xlsx`;
+    res.setHeader('Content-Type', 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet');
+    res.setHeader('Content-Disposition', `attachment; filename="${nomeArquivo}"`);
+    res.send(buffer);
+  });
+
+  r.post('/consultores/importar-atualizacoes', (req, res) => {
+    if (!req.body.arquivo) return res.status(400).json({ erro: 'Nenhum arquivo enviado' });
+    try {
+      const buffer = Buffer.from(req.body.arquivo, 'base64');
+      res.json(importarAtualizacoesConsultor(db, buffer, hojeLocalIso()));
+    } catch (e) {
+      res.status(400).json({ erro: `Falha ao importar planilha: ${e.message}` });
+    }
   });
 
   r.get('/filiais', (req, res) => {

@@ -3,6 +3,8 @@ const assert = require('node:assert');
 const express = require('express');
 const { openDb } = require('../src/db');
 const { criarRotas } = require('../src/routes');
+const XLSX = require('xlsx');
+const { COLUNAS_PROPOSTAS } = require('../src/consultorPlanilha');
 
 function subirApp() {
   const db = openDb(':memory:');
@@ -12,7 +14,7 @@ function subirApp() {
   app.use('/api', criarRotas(db));
   const server = app.listen(0);
   const base = `http://localhost:${server.address().port}`;
-  return { server, base };
+  return { db, server, base };
 }
 
 test('GET /clientes lista distinta e ordenada; filtro ?cliente= é exato', async () => {
@@ -68,4 +70,71 @@ test('POST e PUT de proposta persistem custos e ROI', async () => {
   assert.equal(p.custo_dep01, 9999);
   assert.equal(p.roi_dep01, 7);
   assert.equal(p.custo_dep02, 3000);
+});
+
+test('GET /consultores/:id/exportar gera planilha só com propostas ATIVA do consultor', async () => {
+  const { db, server, base } = subirApp();
+  after(() => server.close());
+
+  const consultorId = db.prepare(
+    "INSERT INTO consultores (nome, tipo) VALUES ('CONSULTOR TESTE', 'FRANQUEADO')"
+  ).run().lastInsertRowid;
+  await fetch(`${base}/api/propostas`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({
+      filial_id: 1, numero: '10', data_emissao: '2026-07-01', cliente: 'COND EXPORT', consultor_id: consultorId,
+    }),
+  });
+
+  const resp = await fetch(`${base}/api/consultores/${consultorId}/exportar`);
+  assert.equal(resp.status, 200);
+  assert.match(resp.headers.get('content-disposition') || '', /attachment/);
+  const buffer = Buffer.from(await resp.arrayBuffer());
+  const wb = XLSX.read(buffer, { type: 'buffer' });
+  const linhas = XLSX.utils.sheet_to_json(wb.Sheets['PROPOSTAS']);
+  assert.equal(linhas.length, 1);
+  assert.equal(linhas[0]['Cliente'], 'COND EXPORT');
+
+  const semConsultor = await fetch(`${base}/api/consultores/999999/exportar`);
+  assert.equal(semConsultor.status, 404);
+});
+
+test('POST /consultores/importar-atualizacoes aplica mudanças da planilha', async () => {
+  const { db, server, base } = subirApp();
+  after(() => server.close());
+
+  const consultorId = db.prepare(
+    "INSERT INTO consultores (nome, tipo) VALUES ('CONSULTOR IMPORT', 'FRANQUEADO')"
+  ).run().lastInsertRowid;
+  const criar = await fetch(`${base}/api/propostas`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({
+      filial_id: 1, numero: '20', data_emissao: '2026-07-01', cliente: 'COND IMPORT', consultor_id: consultorId,
+    }),
+  });
+  const { id } = await criar.json();
+
+  const wb = XLSX.utils.book_new();
+  const aoa = [
+    COLUNAS_PROPOSTAS,
+    [id, '20', 'COND IMPORT', '', 0, 'FECHADA', 'FECHADO', 'QUENTE', '', '', ''],
+  ];
+  XLSX.utils.book_append_sheet(wb, XLSX.utils.aoa_to_sheet(aoa), 'PROPOSTAS');
+  const arquivo = XLSX.write(wb, { type: 'buffer', bookType: 'xlsx' }).toString('base64');
+
+  const resp = await fetch(`${base}/api/consultores/importar-atualizacoes`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ arquivo }),
+  });
+  assert.equal(resp.status, 200);
+  const resumo = await resp.json();
+  assert.equal(resumo.atualizadas, 1);
+  assert.equal(resumo.naoEncontradas, 0);
+
+  const p = await (await fetch(`${base}/api/propostas/${id}`)).json();
+  assert.equal(p.status, 'FECHADA');
+  assert.equal(p.termometro, 'QUENTE');
 });
