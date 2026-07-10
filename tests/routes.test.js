@@ -15,6 +15,27 @@ function subirApp() {
   return { server, base };
 }
 
+test('GET /clientes lista distinta e ordenada; filtro ?cliente= é exato', async () => {
+  const { server, base } = subirApp();
+  after(() => server.close());
+
+  const criar = (numero, cliente) => fetch(`${base}/api/propostas`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ filial_id: 1, numero, data_emissao: '2026-07-10', cliente }),
+  });
+  await criar('1', 'COND BRAVO');
+  await criar('2', 'COND ALFA');
+  await criar('3', 'COND BRAVO');
+
+  const clientes = await (await fetch(`${base}/api/clientes`)).json();
+  assert.deepEqual(clientes, ['COND ALFA', 'COND BRAVO']);
+
+  const soBravo = await (await fetch(`${base}/api/propostas?cliente=${encodeURIComponent('COND BRAVO')}`)).json();
+  assert.equal(soBravo.length, 2);
+  assert.ok(soBravo.every(p => p.cliente === 'COND BRAVO'));
+});
+
 test('POST e PUT de proposta persistem custos e ROI', async () => {
   const { server, base } = subirApp();
   after(() => server.close());

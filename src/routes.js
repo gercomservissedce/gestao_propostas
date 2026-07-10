@@ -42,6 +42,7 @@ function criarRotas(db) {
     const params = [];
     // "busca" fica de fora do SQL: LIKE do SQLite não ignora caixa em acentos
     // (ver normalizar() acima), então o texto é filtrado em JS depois da query.
+    if (q.cliente) { cond.push('p.cliente = ?'); params.push(q.cliente); }
     if (q.filial_id) { cond.push('p.filial_id = ?'); params.push(Number(q.filial_id)); }
     if (q.consultor_id) { cond.push('p.consultor_id = ?'); params.push(Number(q.consultor_id)); }
     if (q.status) { cond.push('p.status = ?'); params.push(q.status); }
@@ -129,6 +130,10 @@ function criarRotas(db) {
         .run(proximo_contato, req.params.id);
     }
     res.status(201).json({ id: info.lastInsertRowid });
+  });
+
+  r.get('/clientes', (req, res) => {
+    res.json(db.prepare('SELECT DISTINCT cliente FROM propostas ORDER BY cliente').all().map(r2 => r2.cliente));
   });
 
   r.get('/consultores', (req, res) => {

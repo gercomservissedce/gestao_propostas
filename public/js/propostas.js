@@ -11,15 +11,15 @@ const CAMPOS_CUSTO = [
 ];
 
 const Propostas = {
-  filtros: { busca: '', filial_id: '', consultor_id: '', status: 'ATIVA', etapa: '', termometro: '' },
+  filtros: { busca: '', cliente: '', filial_id: '', consultor_id: '', status: 'ATIVA', etapa: '', termometro: '' },
   filiais: [],
   consultores: [],
   diasAlerta: 30,
 
   async carregar() {
     const tela = document.getElementById('tela-propostas');
-    const [filiais, consultores, cfg] = await Promise.all([
-      apiGet('/api/filiais'), apiGet('/api/consultores'), apiGet('/api/config'),
+    const [filiais, consultores, cfg, clientes] = await Promise.all([
+      apiGet('/api/filiais'), apiGet('/api/consultores'), apiGet('/api/config'), apiGet('/api/clientes'),
     ]);
     this.filiais = filiais;
     this.consultores = consultores;
@@ -28,6 +28,10 @@ const Propostas = {
     tela.innerHTML = `
       <div class="linha-filtros">
         <div class="campo"><label>Buscar</label><input id="pr-busca" placeholder="cliente ou nº" value="${esc(this.filtros.busca)}"></div>
+        <div class="campo"><label>Cliente</label>
+          <input id="pr-cliente" list="pr-clientes" placeholder="todos" value="${esc(this.filtros.cliente)}">
+          <datalist id="pr-clientes">${clientes.map(c => `<option value="${esc(c)}">`).join('')}</datalist>
+        </div>
         <div class="campo"><label>Filial</label><select id="pr-filial">
           <option value="">Todas</option>
           ${filiais.map(f => `<option value="${f.id}" ${String(f.id) === String(this.filtros.filial_id) ? 'selected' : ''}>${esc(f.estado)}</option>`).join('')}
@@ -63,6 +67,15 @@ const Propostas = {
       };
     };
     liga('pr-busca', 'busca', 'input');
+    // Aplica só com nome completo (escolhido na lista) ou campo vazio;
+    // texto parcial fica para o campo Buscar.
+    document.getElementById('pr-cliente').oninput = e => {
+      const v = e.target.value;
+      if (v === '' || clientes.includes(v)) {
+        this.filtros.cliente = v;
+        this.listar();
+      }
+    };
     liga('pr-filial', 'filial_id');
     liga('pr-consultor', 'consultor_id');
     liga('pr-status', 'status');
