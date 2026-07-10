@@ -194,6 +194,22 @@ const Propostas = {
 
     document.getElementById('f-fechar-modal').onclick = () => App.fecharModal();
 
+    // Ao mudar o status, mantém etapa e data de fechamento coerentes na tela
+    // (o servidor garante a mesma regra ao salvar)
+    document.getElementById('f-status').onchange = e => {
+      const dataFech = document.getElementById('f-data_fechamento');
+      const etapa = document.getElementById('f-etapa');
+      if (e.target.value === 'FECHADA') {
+        if (!dataFech.value) dataFech.value = hojeIso();
+        etapa.value = 'FECHADO';
+      } else if (e.target.value === 'PERDIDA') {
+        etapa.value = 'PERDIDO';
+      } else {
+        dataFech.value = '';
+        if (etapa.value === 'FECHADO' || etapa.value === 'PERDIDO') etapa.value = '';
+      }
+    };
+
     const coletar = () => ({
       filial_id: Number(document.getElementById('f-filial_id').value),
       numero: document.getElementById('f-numero').value.trim(),

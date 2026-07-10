@@ -16,6 +16,7 @@ const App = {
       dashboard: () => Dashboard.carregar(),
       propostas: () => Propostas.carregar(),
       consultores: () => Consultores.carregar(),
+      analise: () => Analise.carregar(),
       relatorio: () => Relatorio.carregar(),
     };
     telas[this.telaAtual]().catch(e => aviso(e.message, true));

@@ -2,7 +2,12 @@ const express = require('express');
 const path = require('node:path');
 const { importarPlanilha } = require('./importer');
 const { getConfig, dashboardStats, consultorStats } = require('./stats');
-const { normalizar } = require('./parse');
+const { normalizar, sincronizarFechamento } = require('./parse');
+
+function hojeLocalIso() {
+  const d = new Date();
+  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+}
 
 const CAMINHO_PLANILHA = path.join(__dirname, '..', 'Modelo', 'RELAÇÃO DAS PROPOSTAS CONDOMINIOS.xlsx');
 
@@ -79,7 +84,7 @@ function criarRotas(db) {
   });
 
   r.post('/propostas', (req, res) => {
-    const b = req.body;
+    const b = sincronizarFechamento(req.body, hojeLocalIso());
     if (!b.filial_id || !b.numero || !b.data_emissao || !b.cliente) {
       return res.status(400).json({ erro: 'Campos obrigatórios: filial, número, data e cliente' });
     }
@@ -95,7 +100,7 @@ function criarRotas(db) {
   });
 
   r.put('/propostas/:id', (req, res) => {
-    const b = req.body;
+    const b = sincronizarFechamento(req.body, hojeLocalIso());
     const cols = CAMPOS_PROPOSTA.filter(c => b[c] !== undefined);
     if (!cols.length) return res.status(400).json({ erro: 'Nada para atualizar' });
     const stmt = db.prepare(

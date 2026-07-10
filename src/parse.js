@@ -59,4 +59,21 @@ function normalizar(s) {
     .toLowerCase();
 }
 
-module.exports = { toIsoDate, toNumber, mapStatus, mapEtapa, normalizar };
+// Mantém status, etapa e data de fechamento coerentes ao salvar uma proposta.
+// Sem isso, fechar pelo formulário (só mudando o status) deixa a data vazia
+// e a proposta fica fora do cartão "Fechadas no mês" do dashboard.
+function sincronizarFechamento(dados, hoje) {
+  if (dados.status === undefined) return dados;
+  if (dados.status === 'FECHADA') {
+    if (!dados.data_fechamento) dados.data_fechamento = hoje;
+    dados.etapa = 'FECHADO';
+  } else if (dados.status === 'PERDIDA') {
+    dados.etapa = 'PERDIDO';
+  } else if (dados.status === 'ATIVA') {
+    dados.data_fechamento = null;
+    if (dados.etapa === 'FECHADO' || dados.etapa === 'PERDIDO') dados.etapa = null;
+  }
+  return dados;
+}
+
+module.exports = { toIsoDate, toNumber, mapStatus, mapEtapa, normalizar, sincronizarFechamento };
