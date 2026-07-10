@@ -63,7 +63,7 @@ function importarAtualizacoesConsultor(db, buffer, hoje) {
   const sheet = wb.Sheets['PROPOSTAS'];
   const linhas = sheet ? XLSX.utils.sheet_to_json(sheet) : [];
 
-  const buscaProposta = db.prepare('SELECT id FROM propostas WHERE id = ?');
+  const buscaProposta = db.prepare('SELECT status, etapa, termometro FROM propostas WHERE id = ?');
   const insContato = db.prepare(
     'INSERT INTO contatos (proposta_id, data, anotacao, proximo_contato) VALUES (?, ?, ?, ?)'
   );
@@ -76,18 +76,22 @@ function importarAtualizacoesConsultor(db, buffer, hoje) {
   const importarTudo = db.transaction(() => {
     for (const linha of linhas) {
       const id = Number(linha['ID']);
-      if (!id || !buscaProposta.get(id)) { resultado.naoEncontradas++; continue; }
+      const atual = id ? buscaProposta.get(id) : undefined;
+      if (!atual) { resultado.naoEncontradas++; continue; }
 
       const dados = {};
       const status = String(linha['Status'] || '').trim().toUpperCase();
-      if (STATUS_VALIDOS.includes(status)) dados.status = status;
+      if (STATUS_VALIDOS.includes(status) && status !== atual.status) dados.status = status;
 
       const termometro = String(linha['Termômetro'] || '').trim().toUpperCase();
-      if (termometro === '') dados.termometro = null;
-      else if (TERMOMETROS_VALIDOS.includes(termometro)) dados.termometro = termometro;
+      if (termometro === '') {
+        if (atual.termometro !== null) dados.termometro = null;
+      } else if (TERMOMETROS_VALIDOS.includes(termometro) && termometro !== atual.termometro) {
+        dados.termometro = termometro;
+      }
 
       const etapa = String(linha['Etapa'] || '').trim().toUpperCase();
-      if (etapa) dados.etapa = etapa;
+      if (etapa && etapa !== atual.etapa) dados.etapa = etapa;
 
       const { changes } = atualizarProposta(db, id, dados, hoje);
       if (changes) resultado.atualizadas++;

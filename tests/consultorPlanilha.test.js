@@ -106,3 +106,32 @@ test('importarAtualizacoesConsultor limpa termômetro quando a célula vem vazia
   const depois = db.prepare('SELECT termometro FROM propostas WHERE id = ?').get(idAtiva);
   assert.equal(depois.termometro, null);
 });
+
+test('importarAtualizacoesConsultor não conta como atualizada quando nada muda, mas conta quando muda de fato', () => {
+  const { db, consultorA } = dbComPropostas();
+  const idAtiva = db.prepare("SELECT id FROM propostas WHERE numero = '1'").get().id;
+  const idFechada = db.prepare("SELECT id FROM propostas WHERE numero = '2'").get().id;
+
+  // idAtiva: reimporta exatamente o que já está salvo (status ATIVA, etapa e
+  // termômetro idênticos aos atuais) — simula reexportar e reimportar sem
+  // que o consultor tenha alterado nada nessa linha.
+  // idFechada: muda o status de FECHADA para PERDIDA — mudança genuína.
+  const buffer = planilhaAtualizacao([
+    [idAtiva, '1', 'COND ATIVA', 'CEARÁ', 1000, 'ATIVA', 'EM NEGOCIAÇÃO', 'QUENTE', '', '', ''],
+    [idFechada, '2', 'COND FECHADA', 'CEARÁ', 2000, 'PERDIDA', '', '', '', '', ''],
+  ]);
+
+  const r = importarAtualizacoesConsultor(db, buffer, '2026-07-10');
+  assert.equal(r.atualizadas, 1);
+
+  const inalterada = db.prepare(
+    'SELECT status, etapa, termometro FROM propostas WHERE id = ?'
+  ).get(idAtiva);
+  assert.equal(inalterada.status, 'ATIVA');
+  assert.equal(inalterada.etapa, 'EM NEGOCIAÇÃO');
+  assert.equal(inalterada.termometro, 'QUENTE');
+
+  const alterada = db.prepare('SELECT status, etapa FROM propostas WHERE id = ?').get(idFechada);
+  assert.equal(alterada.status, 'PERDIDA');
+  assert.equal(alterada.etapa, 'PERDIDO');
+});
