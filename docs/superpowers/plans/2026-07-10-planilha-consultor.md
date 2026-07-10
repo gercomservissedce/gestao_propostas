@@ -299,6 +299,8 @@ git commit -m "feat: gera planilha de propostas ativas por consultor"
 ### Task 3: Reimportar a planilha preenchida pelo consultor
 
 **Files:**
+- Modify: `src/parse.js` (extrair `serialExcelParaIso`, reaproveitado pelo parser de data
+  desta task — ver Step 0)
 - Modify: `src/consultorPlanilha.js` (adicionar `importarAtualizacoesConsultor`)
 - Modify: `tests/consultorPlanilha.test.js` (adicionar os testes de reimportação)
 
@@ -307,7 +309,64 @@ git commit -m "feat: gera planilha de propostas ativas por consultor"
   `COLUNAS_PROPOSTAS` (Task 2, para montar as planilhas de teste com o mesmo cabeçalho).
 - Produces: `importarAtualizacoesConsultor(db, buffer, hoje) -> { atualizadas: number,
   contatosAdicionados: number, naoEncontradas: number }`, exportado por
-  `src/consultorPlanilha.js`.
+  `src/consultorPlanilha.js`; `serialExcelParaIso(v) -> string|null|undefined` (`undefined`
+  quando `v` não é número nem `Date`, sinalizando ao chamador que trate como texto),
+  exportado por `src/parse.js` e reaproveitado por `toIsoDate` (comportamento inalterado).
+
+- [ ] **Step 0: Extrair `serialExcelParaIso` em `src/parse.js` (evita duplicar a conversão de serial do Excel)**
+
+O parser de data desta task (`paraDataIso`, Step 3) precisa da mesma conversão de serial
+Excel/`Date` que `toIsoDate` já faz — só o texto digitado divide os dois (`toIsoDate`
+assume `m/d/aaaa` da planilha legada; a planilha do consultor usa `dd/mm/aaaa`). Em vez de
+copiar essa lógica, extraia a parte comum. Em `src/parse.js`, troque a função `toIsoDate`
+por:
+
+```js
+// Conversão de serial do Excel / objeto Date para ISO — comum a toIsoDate (texto
+// m/d/aaaa da planilha legada) e ao parser de data da planilha do consultor (texto
+// dd/mm/aaaa, em src/consultorPlanilha.js). undefined sinaliza "não é serial nem
+// Date", para o chamador tratar como texto.
+function serialExcelParaIso(v) {
+  if (typeof v === 'number') {
+    if (v <= 0) return null;
+    const d = new Date(EXCEL_EPOCH_UTC + Math.round(v) * 86400000);
+    return `${d.getUTCFullYear()}-${pad2(d.getUTCMonth() + 1)}-${pad2(d.getUTCDate())}`;
+  }
+  if (v instanceof Date) {
+    if (isNaN(v.getTime())) return null;
+    const dias = Math.round((v.getTime() - EXCEL_EPOCH_UTC) / 86400000);
+    const d = new Date(EXCEL_EPOCH_UTC + dias * 86400000);
+    return `${d.getUTCFullYear()}-${pad2(d.getUTCMonth() + 1)}-${pad2(d.getUTCDate())}`;
+  }
+  return undefined;
+}
+
+// Datas da planilha vêm como serial do Excel (raw), Date ou texto M/D/YY
+function toIsoDate(v) {
+  if (v == null) return null;
+  const serial = serialExcelParaIso(v);
+  if (serial !== undefined) return serial;
+  const s = String(v).trim();
+  if (!s) return null;
+  const m = s.match(/^(\d{1,2})\/(\d{1,2})\/(\d{2,4})$/);
+  if (!m) return null;
+  let [, mes, dia, ano] = m;
+  ano = Number(ano);
+  if (ano < 100) ano += 2000;
+  return `${ano}-${pad2(mes)}-${pad2(dia)}`;
+}
+```
+
+Troque o `module.exports` de `src/parse.js` por:
+
+```js
+module.exports = { toIsoDate, toNumber, mapStatus, mapEtapa, normalizar, sincronizarFechamento, serialExcelParaIso };
+```
+
+Run: `npm test -- tests/parse.test.js`
+Expected: PASS — o comportamento de `toIsoDate` não muda (mesma lógica, só reorganizada);
+os testes existentes de `toIsoDate` (`Date` e string `M/D/YY`) continuam cobrindo os dois
+caminhos.
 
 - [ ] **Step 1: Escrever os testes (vão falhar — função ainda não existe)**
 
@@ -390,10 +449,11 @@ Expected: FAIL — `importarAtualizacoesConsultor is not a function`
 
 - [ ] **Step 3: Adicionar `importarAtualizacoesConsultor` em `src/consultorPlanilha.js`**
 
-No topo do arquivo, adicione o import do helper compartilhado:
+No topo do arquivo, adicione os imports do helper compartilhado e do parser de serial:
 
 ```js
 const { atualizarProposta } = require('./propostaUpdate');
+const { serialExcelParaIso } = require('./parse');
 ```
 
 No final do arquivo, antes do `module.exports`, adicione:
@@ -402,20 +462,14 @@ No final do arquivo, antes do `module.exports`, adicione:
 const STATUS_VALIDOS = ['ATIVA', 'FECHADA', 'PERDIDA'];
 const TERMOMETROS_VALIDOS = ['QUENTE', 'MORNO', 'FRIO'];
 
-// Epoch do Excel: 1899-12-30. Datas digitadas como texto na planilha do
-// consultor seguem dd/mm/aaaa (diferente do toIsoDate de src/parse.js, que
-// assume m/d/aaaa para compatibilidade com a planilha legada em inglês).
+// Datas digitadas como texto na planilha do consultor seguem dd/mm/aaaa
+// (diferente do toIsoDate de src/parse.js, que assume m/d/aaaa para
+// compatibilidade com a planilha legada). Serial do Excel e objeto Date são
+// tratados por serialExcelParaIso, compartilhado com toIsoDate.
 function paraDataIso(v) {
   if (v == null || v === '') return null;
-  if (typeof v === 'number') {
-    if (v <= 0) return null;
-    const d = new Date(Date.UTC(1899, 11, 30) + Math.round(v) * 86400000);
-    return `${d.getUTCFullYear()}-${String(d.getUTCMonth() + 1).padStart(2, '0')}-${String(d.getUTCDate()).padStart(2, '0')}`;
-  }
-  if (v instanceof Date) {
-    if (isNaN(v.getTime())) return null;
-    return `${v.getUTCFullYear()}-${String(v.getUTCMonth() + 1).padStart(2, '0')}-${String(v.getUTCDate()).padStart(2, '0')}`;
-  }
+  const serial = serialExcelParaIso(v);
+  if (serial !== undefined) return serial;
   const s = String(v).trim();
   const m = s.match(/^(\d{1,2})\/(\d{1,2})\/(\d{2,4})$/);
   if (!m) return null;
@@ -488,7 +542,7 @@ Expected: PASS
 - [ ] **Step 5: Commit**
 
 ```bash
-git add src/consultorPlanilha.js tests/consultorPlanilha.test.js
+git add src/parse.js src/consultorPlanilha.js tests/consultorPlanilha.test.js
 git commit -m "feat: importa atualizações da planilha do consultor"
 ```
 
