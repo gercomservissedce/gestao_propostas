@@ -1,3 +1,14 @@
+function custoProposta(p) {
+  return (p.custo_dep01 || 0) + (p.custo_dep02 || 0);
+}
+function roiProposta(p) {
+  if (!p.vlr_mensal) return null;
+  return custoProposta(p) / p.vlr_mensal;
+}
+function fmtMeses(v) {
+  return v == null ? '—' : `${v.toFixed(1).replace('.', ',')} meses`;
+}
+
 const Relatorio = {
   timerSalvar: {},
 
@@ -31,7 +42,9 @@ const Relatorio = {
         <table class="tabela">
           <thead><tr>
             <th></th><th>Nº</th><th>Cliente</th><th>Filial</th><th>Consultor</th>
-            <th style="text-align:right">Valor original</th><th style="text-align:right">Valor mín. p/ fechamento</th><th>Termômetro</th>
+            <th style="text-align:right">Valor original</th>
+            <th style="text-align:right">Custo</th><th style="text-align:right">ROI</th>
+            <th style="text-align:right">Valor mín. p/ fechamento</th><th>Termômetro</th>
           </tr></thead>
           <tbody>
             ${lista.map(p => `
@@ -42,6 +55,8 @@ const Relatorio = {
               <td>${esc(p.filial || '')}</td>
               <td>${esc((p.consultor || '—').split(' ').slice(0, 2).join(' '))}</td>
               <td class="num">${fmtMoeda(p.vlr_total)}</td>
+              <td class="num">${fmtMoeda(custoProposta(p))}</td>
+              <td class="num">${fmtMeses(roiProposta(p))}</td>
               <td class="num"><input class="vlr-min" type="number" step="0.01" min="0"
                 data-minimo="${p.id}" value="${p.valor_minimo_fechamento ?? ''}"
                 placeholder="${(p.vlr_total || 0).toFixed(2)}" ${p.marcada_relatorio ? '' : 'disabled'}></td>
