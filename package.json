@@ -1,0 +1,16 @@
+{
+  "name": "gestao-propostas",
+  "version": "1.0.0",
+  "description": "Sistema local de gestão de propostas comerciais",
+  "main": "server.js",
+  "scripts": {
+    "start": "node server.js",
+    "test": "node --test"
+  },
+  "dependencies": {
+    "better-sqlite3": "^12.11.1",
+    "express": "^5.2.1",
+    "puppeteer-core": "^25.3.0",
+    "xlsx": "^0.18.5"
+  }
+}
