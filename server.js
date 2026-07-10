@@ -22,6 +22,7 @@ const app = express();
 app.use(express.json());
 app.use('/api', criarRotas(db));
 app.use(express.static(path.join(__dirname, 'public')));
+app.use('/relatorios', express.static(path.join(__dirname, 'relatorios')));
 
 // Página do relatório para impressão/PDF
 app.get('/relatorio/print', (req, res) => {
