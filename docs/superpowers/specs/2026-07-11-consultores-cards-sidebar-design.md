@@ -29,12 +29,12 @@ dados necessários.
     ocupando a altura da viewport abaixo do header (sticky).
   - `<main>` ao lado, com as seções de tela existentes.
 - A sidebar tem um rótulo de seção "NAVEGAÇÃO" (maiúsculas, pequeno,
-  cor atenuada) seguido de 5 itens, cada um com ícone + texto:
-  - 📊 Dashboard
-  - 📄 Propostas
-  - 👥 Consultores
-  - 📈 Análise
-  - 📋 Relatório Diretoria
+  cor atenuada) seguido de 5 itens, somente texto (sem emojis/ícones):
+  - Dashboard
+  - Propostas
+  - Consultores
+  - Análise
+  - Relatório Diretoria
 - Item ativo: fundo destacado e texto em cor de destaque (como no mockup).
 - **Não** há seção "Filiais" na sidebar (decisão do usuário).
 
