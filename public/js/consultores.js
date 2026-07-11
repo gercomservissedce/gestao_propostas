@@ -89,9 +89,11 @@ const Consultores = {
             ${opcoesOrdem.map(([v, r]) => `<option value="${v}" ${this.ordem === v ? 'selected' : ''}>${r}</option>`).join('')}
           </select>
         </div>
-        <span class="cons-contador">${d.length} consultores</span>
+        <span class="cons-contador">${d.length} ${d.length === 1 ? 'consultor' : 'consultores'}</span>
       </div>
-      <div class="rep-grade">
+      ${d.length === 0
+        ? `<div class="cartao" style="text-align:center;color:var(--tinta-2);padding:28px">Nenhum consultor encontrado para o filtro selecionado.</div>`
+        : `<div class="rep-grade">
         ${d.map(c => `
         <div class="rep-cartao">
           <div class="rep-topo">
@@ -112,7 +114,8 @@ const Consultores = {
             <button class="btn" data-planilha="${c.id}">📊 Gerar planilha</button>
           </div>
         </div>`).join('')}
-      </div>
+      </div>`
+      }
     `;
 
     document.getElementById('cons-tipo').onchange = e => {
@@ -126,7 +129,7 @@ const Consultores = {
 
     tela.querySelectorAll('[data-ver]').forEach(btn => {
       btn.onclick = () => {
-        Propostas.filtros = { busca: '', filial_id: '', consultor_id: btn.dataset.ver, status: '', etapa: '', termometro: '' };
+        Propostas.filtros = { busca: '', cliente: '', filial_id: '', consultor_id: btn.dataset.ver, status: '', etapa: '', termometro: '', origem: '' };
         App.trocarTela('propostas');
       };
     });
