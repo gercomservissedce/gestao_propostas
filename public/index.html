@@ -25,24 +25,29 @@
       <span class="topo-sub">Acompanhamento comercial</span>
     </div>
   </div>
-  <nav class="abas" id="abas">
+  <span class="topo-espaco"></span>
+  <button class="btn-icone" id="btn-tema" title="Alternar tema claro/escuro">🌙</button>
+  <button class="btn-icone" id="btn-config" title="Configurações">⚙</button>
+</header>
+
+<div class="corpo">
+  <aside class="sidebar" id="abas">
+    <div class="sidebar-rotulo">Navegação</div>
     <button class="aba ativa" data-tela="dashboard">Dashboard</button>
     <button class="aba" data-tela="propostas">Propostas</button>
     <button class="aba" data-tela="consultores">Consultores</button>
     <button class="aba" data-tela="analise">Análise</button>
     <button class="aba" data-tela="relatorio">Relatório Diretoria</button>
-  </nav>
-  <button class="btn-icone" id="btn-tema" title="Alternar tema claro/escuro">🌙</button>
-  <button class="btn-icone" id="btn-config" title="Configurações">⚙</button>
-</header>
+  </aside>
 
-<main>
-  <section id="tela-dashboard" class="tela"></section>
-  <section id="tela-propostas" class="tela oculta"></section>
-  <section id="tela-consultores" class="tela oculta"></section>
-  <section id="tela-analise" class="tela oculta"></section>
-  <section id="tela-relatorio" class="tela oculta"></section>
-</main>
+  <main>
+    <section id="tela-dashboard" class="tela"></section>
+    <section id="tela-propostas" class="tela oculta"></section>
+    <section id="tela-consultores" class="tela oculta"></section>
+    <section id="tela-analise" class="tela oculta"></section>
+    <section id="tela-relatorio" class="tela oculta"></section>
+  </main>
+</div>
 
 <div id="modal-fundo" class="modal-fundo oculta">
   <div id="modal-caixa" class="modal-caixa"></div>
