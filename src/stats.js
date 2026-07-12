@@ -17,6 +17,8 @@ function filtroSql(filtros = {}) {
   if (filtros.consultor_id) { cond.push('p.consultor_id = ?'); params.push(filtros.consultor_id); }
   if (filtros.de) { cond.push('p.data_emissao >= ?'); params.push(filtros.de); }
   if (filtros.ate) { cond.push('p.data_emissao <= ?'); params.push(filtros.ate); }
+  if (filtros.termometro === 'NULA') cond.push('p.termometro IS NULL');
+  else if (filtros.termometro) { cond.push('p.termometro = ?'); params.push(filtros.termometro); }
   return { where: cond.length ? 'AND ' + cond.join(' AND ') : '', params };
 }
 

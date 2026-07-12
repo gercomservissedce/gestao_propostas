@@ -79,3 +79,33 @@ test('dashboardStats aplica filtro de consultor', () => {
   assert.equal(s.totalAtivas.qtde, 2); // propostas 1 e 2
   assert.equal(s.totalAtivas.valor, 3000);
 });
+
+test('consultorStats aplica filtro de termômetro e datas', () => {
+  const db = seedDb();
+
+  // QUENTE: só a proposta 1 (ANA, ATIVA, 1000)
+  const quentes = consultorStats(db, { termometro: 'QUENTE' });
+  const anaQ = quentes.find(c => c.nome === 'ANA');
+  assert.equal(anaQ.emitidas, 1);
+  assert.equal(anaQ.valorTotal, 1000);
+  assert.equal(anaQ.fechadas, 0);
+  const betoQ = quentes.find(c => c.nome === 'BETO');
+  assert.equal(betoQ.emitidas, 0); // BETO segue na lista (ativo=1), sem propostas no recorte
+
+  // NULA: propostas 4 (BETO 4000), 5 (ANA FECHADA 5000) e 6 (BETO PERDIDA 6000)
+  const nulas = consultorStats(db, { termometro: 'NULA' });
+  const anaN = nulas.find(c => c.nome === 'ANA');
+  assert.equal(anaN.emitidas, 1);
+  assert.equal(anaN.valorFechado, 5000);
+  const betoN = nulas.find(c => c.nome === 'BETO');
+  assert.equal(betoN.emitidas, 2);
+
+  // Período: últimos 15 dias → proposta 1 (ANA) e proposta 4 (BETO)
+  const recentes = consultorStats(db, { de: hoje(15) });
+  assert.equal(recentes.find(c => c.nome === 'ANA').emitidas, 1);
+  assert.equal(recentes.find(c => c.nome === 'BETO').emitidas, 1);
+
+  // Combinado: termômetro + período sem interseção → ninguém tem emitidas
+  const vazio = consultorStats(db, { termometro: 'MORNO', de: hoje(15) });
+  assert.ok(vazio.every(c => c.emitidas === 0));
+});

@@ -22,6 +22,7 @@ function criarRotas(db) {
       consultor_id: q.consultor_id ? Number(q.consultor_id) : null,
       de: q.de || null,
       ate: q.ate || null,
+      termometro: q.termometro || null,
     };
   }
 
