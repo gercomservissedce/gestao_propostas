@@ -1,11 +1,19 @@
 const Consultores = {
   ordem: 'valorFechado',
   filtroTipo: '',
+  filtros: { de: '', ate: '', termometro: '' },
   dados: [],
 
   async carregar() {
-    this.dados = await apiGet('/api/consultores/stats');
+    const query = new URLSearchParams(
+      Object.entries(this.filtros).filter(([, v]) => v)).toString();
+    this.dados = await apiGet('/api/consultores/stats' + (query ? '?' + query : ''));
     this.render();
+  },
+
+  aplicarFiltro(campo, valor) {
+    this.filtros[campo] = valor;
+    this.carregar().catch(e => aviso(e.message, true));
   },
 
   iniciais(nome) {
@@ -77,6 +85,17 @@ const Consultores = {
         </div>
       </div>
       <div class="linha-filtros">
+        <div class="campo"><label>Emitidas de</label><input type="date" id="cons-de" value="${this.filtros.de}"></div>
+        <div class="campo"><label>até</label><input type="date" id="cons-ate" value="${this.filtros.ate}"></div>
+        <div class="campo"><label>Termômetro</label>
+          <select id="cons-termometro">
+            <option value="">Todos</option>
+            <option value="QUENTE" ${this.filtros.termometro === 'QUENTE' ? 'selected' : ''}>Quente</option>
+            <option value="MORNO" ${this.filtros.termometro === 'MORNO' ? 'selected' : ''}>Morno</option>
+            <option value="FRIO" ${this.filtros.termometro === 'FRIO' ? 'selected' : ''}>Frio</option>
+            <option value="NULA" ${this.filtros.termometro === 'NULA' ? 'selected' : ''}>Não classificada</option>
+          </select>
+        </div>
         <div class="campo"><label>Tipo</label>
           <select id="cons-tipo">
             <option value="">Todos</option>
@@ -89,6 +108,7 @@ const Consultores = {
             ${opcoesOrdem.map(([v, r]) => `<option value="${v}" ${this.ordem === v ? 'selected' : ''}>${r}</option>`).join('')}
           </select>
         </div>
+        <button class="btn" id="cons-limpar">Limpar</button>
         <span class="cons-contador">${d.length} ${d.length === 1 ? 'consultor' : 'consultores'}</span>
       </div>
       ${d.length === 0
@@ -118,6 +138,14 @@ const Consultores = {
       }
     `;
 
+    document.getElementById('cons-de').onchange = e => this.aplicarFiltro('de', e.target.value);
+    document.getElementById('cons-ate').onchange = e => this.aplicarFiltro('ate', e.target.value);
+    document.getElementById('cons-termometro').onchange = e => this.aplicarFiltro('termometro', e.target.value);
+    document.getElementById('cons-limpar').onclick = () => {
+      this.filtros = { de: '', ate: '', termometro: '' };
+      this.filtroTipo = '';
+      this.carregar().catch(e => aviso(e.message, true));
+    };
     document.getElementById('cons-tipo').onchange = e => {
       this.filtroTipo = e.target.value;
       this.render();
