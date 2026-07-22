@@ -59,6 +59,30 @@ const Dashboard = {
         </div>
       </div>
 
+      <div class="kpis">
+        <div class="cartao kpi">
+          <div class="rotulo">Geradas</div>
+          <div class="valor">${fmtMoeda(d.geradas.valor)}</div>
+          <div class="detalhe">${d.geradas.qtde} propostas</div>
+        </div>
+        <!-- mesmo dado do cartão "Em negociação" acima — repetido de propósito para reunir as 4 fases do funil numa só linha -->
+        <div class="cartao kpi">
+          <div class="rotulo">Em andamento</div>
+          <div class="valor">${fmtMoeda(d.totalAtivas.valor)}</div>
+          <div class="detalhe">${d.totalAtivas.qtde} propostas</div>
+        </div>
+        <div class="cartao kpi">
+          <div class="rotulo">Fechadas</div>
+          <div class="valor">${fmtMoeda(d.fechadasTotal.valor)}</div>
+          <div class="detalhe">${d.fechadasTotal.qtde} propostas</div>
+        </div>
+        <div class="cartao kpi">
+          <div class="rotulo">Perdidas</div>
+          <div class="valor">${fmtMoeda(d.perdidas.valor)}</div>
+          <div class="detalhe">${d.perdidas.qtde} propostas</div>
+        </div>
+      </div>
+
       <div class="cartao regua-wrap">
         <div class="titulo-secao">Termômetro do pipeline — valor em negociação por temperatura</div>
         <div class="regua">

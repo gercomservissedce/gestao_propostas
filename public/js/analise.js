@@ -29,7 +29,9 @@ const Analise = {
       if (p.status === 'FECHADA') g.valorFechado += p.vlr_total || 0;
       if (p.status === 'ATIVA' && p.dias_sem_contato > cfg.dias_alerta) g.paradas++;
     }
-    const consultores = Object.values(porConsultor).sort((a, b) => b.total - a.total);
+    const consultores = Object.values(porConsultor)
+      .map(c => ({ ...c, conversao: c.total ? 100 * c.FECHADA / c.total : 0 }))
+      .sort((a, b) => b.total - a.total);
 
     // ----- agrupamento por filial -----
     const porFilial = {};
@@ -147,7 +149,14 @@ const Analise = {
                 ${c.FECHADA ? `<div class="seg-status-fechada" style="flex:${c.FECHADA}" title="${c.FECHADA} fechadas"></div>` : ''}
                 ${c.PERDIDA ? `<div class="seg-status-perdida" style="flex:${c.PERDIDA}" title="${c.PERDIDA} perdidas"></div>` : ''}
               </div>
-              <span class="cons-num">${c.total}${c.FECHADA ? ` <em>(${c.FECHADA}✓)</em>` : ''}</span>
+              <span class="cons-contagem">
+                ${[
+                  c.ATIVA ? `<b class="txt-ativa">${c.ATIVA}</b>` : '',
+                  c.FECHADA ? `<b class="txt-fechada">${c.FECHADA}</b>` : '',
+                  c.PERDIDA ? `<b class="txt-perdida">${c.PERDIDA}</b>` : '',
+                ].filter(Boolean).join('<span class="sep">·</span>')}
+              </span>
+              <span class="cons-conv">conv ${fmtPct(c.conversao)}</span>
             </div>`).join('')}
           </div>
         </div>

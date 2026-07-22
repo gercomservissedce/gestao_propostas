@@ -109,3 +109,25 @@ test('consultorStats aplica filtro de termômetro e datas', () => {
   const vazio = consultorStats(db, { termometro: 'MORNO', de: hoje(15) });
   assert.ok(vazio.every(c => c.emitidas === 0));
 });
+
+test('dashboardStats calcula geradas, fechadasTotal e perdidas', () => {
+  const db = seedDb();
+  const s = dashboardStats(db, {});
+  assert.equal(s.geradas.qtde, 6);
+  assert.equal(s.geradas.valor, 21000);
+  assert.equal(s.fechadasTotal.qtde, 1);
+  assert.equal(s.fechadasTotal.valor, 5000);
+  assert.equal(s.perdidas.qtde, 1);
+  assert.equal(s.perdidas.valor, 6000);
+});
+
+test('dashboardStats aplica filtro de consultor a geradas/fechadasTotal/perdidas', () => {
+  const db = seedDb();
+  const s = dashboardStats(db, { consultor_id: 1 }); // ANA: propostas 1, 2, 5
+  assert.equal(s.geradas.qtde, 3);
+  assert.equal(s.geradas.valor, 8000);
+  assert.equal(s.fechadasTotal.qtde, 1);
+  assert.equal(s.fechadasTotal.valor, 5000);
+  assert.equal(s.perdidas.qtde, 0);
+  assert.equal(s.perdidas.valor, 0);
+});

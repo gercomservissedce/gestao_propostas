@@ -53,6 +53,21 @@ function dashboardStats(db, filtros = {}) {
     FROM propostas p WHERE 1=1 ${where}
   `).get(...params);
 
+  const geradas = db.prepare(`
+    SELECT COUNT(*) qtde, COALESCE(SUM(vlr_total),0) valor
+    FROM propostas p WHERE 1=1 ${where}
+  `).get(...params);
+
+  const fechadasTotal = db.prepare(`
+    SELECT COUNT(*) qtde, COALESCE(SUM(vlr_total),0) valor
+    FROM propostas p WHERE status='FECHADA' ${where}
+  `).get(...params);
+
+  const perdidas = db.prepare(`
+    SELECT COUNT(*) qtde, COALESCE(SUM(vlr_total),0) valor
+    FROM propostas p WHERE status='PERDIDA' ${where}
+  `).get(...params);
+
   const funil = db.prepare(`
     SELECT COALESCE(etapa, 'SEM ETAPA') etapa, COUNT(*) qtde, COALESCE(SUM(vlr_total),0) valor
     FROM propostas p WHERE status='ATIVA' ${where}
@@ -91,6 +106,9 @@ function dashboardStats(db, filtros = {}) {
     previsaoPonderada: prev.v,
     fechadasMes: { qtde: fechadasMes.qtde, valor: fechadasMes.valor },
     taxaConversao: conv.total ? (100 * (conv.fechadas || 0)) / conv.total : 0,
+    geradas: { qtde: geradas.qtde, valor: geradas.valor },
+    fechadasTotal: { qtde: fechadasTotal.qtde, valor: fechadasTotal.valor },
+    perdidas: { qtde: perdidas.qtde, valor: perdidas.valor },
     funil,
     termometro,
     esquecidas,
