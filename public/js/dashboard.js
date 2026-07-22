@@ -65,6 +65,7 @@ const Dashboard = {
           <div class="valor">${fmtMoeda(d.geradas.valor)}</div>
           <div class="detalhe">${d.geradas.qtde} propostas</div>
         </div>
+        <!-- mesmo dado do cartão "Em negociação" acima — repetido de propósito para reunir as 4 fases do funil numa só linha -->
         <div class="cartao kpi">
           <div class="rotulo">Em andamento</div>
           <div class="valor">${fmtMoeda(d.totalAtivas.valor)}</div>
