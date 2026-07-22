@@ -1,6 +1,7 @@
 node_modules/
 dados/
 relatorios/
+Modelo/
 ~$*
 *.log
 .claude/
