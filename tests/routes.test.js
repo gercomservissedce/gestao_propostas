@@ -156,3 +156,34 @@ test('POST /propostas persiste origem; GET /propostas filtra por origem', async 
   assert.equal(soLead[0].cliente, 'COND LEAD');
   assert.equal(soLead[0].origem, 'LEAD');
 });
+
+test('GET /propostas/anos devolve anos distintos em ordem decrescente', async () => {
+  const { server, base } = subirApp();
+  after(() => server.close());
+
+  const criar = (numero, data_emissao) => fetch(`${base}/api/propostas`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ filial_id: 1, numero, data_emissao, cliente: 'COND ANOS' }),
+  });
+  await criar('1', '2024-11-11');
+  await criar('2', '2026-07-01');
+  await criar('3', '2026-02-05');
+  await criar('4', '2025-03-09');
+
+  const resposta = await fetch(`${base}/api/propostas/anos`);
+  assert.equal(resposta.status, 200);
+  // 2026 está em duas propostas e aparece uma única vez na resposta
+  assert.deepEqual(await resposta.json(), ['2026', '2025', '2024']);
+});
+
+test('/propostas/anos não é capturado pela rota /propostas/:id', async () => {
+  const { server, base } = subirApp();
+  after(() => server.close());
+
+  // Banco vazio. Se 'anos' cair em /propostas/:id, a resposta é
+  // 404 { erro: 'Proposta não encontrada' } em vez de uma lista vazia.
+  const resposta = await fetch(`${base}/api/propostas/anos`);
+  assert.equal(resposta.status, 200);
+  assert.deepEqual(await resposta.json(), []);
+});

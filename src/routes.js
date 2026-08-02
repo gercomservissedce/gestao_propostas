@@ -65,6 +65,17 @@ function criarRotas(db) {
     res.json(rows);
   });
 
+  // Precisa vir ANTES de '/propostas/:id': o Express casa as rotas na ordem
+  // de declaração e 'anos' seria lido como um id de proposta.
+  r.get('/propostas/anos', (req, res) => {
+    res.json(db.prepare(`
+      SELECT DISTINCT strftime('%Y', data_emissao) ano
+      FROM propostas
+      WHERE data_emissao IS NOT NULL AND data_emissao <> ''
+      ORDER BY ano DESC
+    `).all().map(r2 => r2.ano));
+  });
+
   r.get('/propostas/:id', (req, res) => {
     const p = db.prepare(`
       SELECT p.*, c.nome consultor, f.estado filial
