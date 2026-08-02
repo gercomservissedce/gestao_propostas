@@ -12,15 +12,16 @@ const CAMPOS_CUSTO = [
 ];
 
 const Propostas = {
-  filtros: { busca: '', cliente: '', filial_id: '', consultor_id: '', status: 'ATIVA', etapa: '', termometro: '', origem: '' },
+  filtros: { busca: '', cliente: '', filial_id: '', consultor_id: '', status: 'ATIVA', etapa: '', termometro: '', origem: '', mes: '', ano: '' },
   filiais: [],
   consultores: [],
   diasAlerta: 30,
 
   async carregar() {
     const tela = document.getElementById('tela-propostas');
-    const [filiais, consultores, cfg, clientes] = await Promise.all([
-      apiGet('/api/filiais'), apiGet('/api/consultores'), apiGet('/api/config'), apiGet('/api/clientes'),
+    const [filiais, consultores, cfg, clientes, anos] = await Promise.all([
+      apiGet('/api/filiais'), apiGet('/api/consultores'), apiGet('/api/config'),
+      apiGet('/api/clientes'), apiGet('/api/propostas/anos'),
     ]);
     this.filiais = filiais;
     this.consultores = consultores;
@@ -60,6 +61,17 @@ const Propostas = {
           <option value="">Todas</option>
           ${ORIGENS.map(o => `<option ${o === this.filtros.origem ? 'selected' : ''}>${o}</option>`).join('')}
         </select></div>
+        <div class="campo"><label>Mês</label><select id="pr-mes">
+          <option value="">Todos</option>
+          ${NOMES_MES.map((nome, i) => {
+            const v = String(i + 1).padStart(2, '0');
+            return `<option value="${v}" ${v === this.filtros.mes ? 'selected' : ''}>${nome}</option>`;
+          }).join('')}
+        </select></div>
+        <div class="campo"><label>Ano</label><select id="pr-ano">
+          <option value="">Todos</option>
+          ${anos.map(a => `<option ${a === this.filtros.ano ? 'selected' : ''}>${esc(a)}</option>`).join('')}
+        </select></div>
         <button class="btn btn-primario" id="pr-nova">+ Nova proposta</button>
       </div>
       <div class="cartao"><div class="rolagem" id="pr-tabela">Carregando…</div></div>
@@ -87,6 +99,8 @@ const Propostas = {
     liga('pr-etapa', 'etapa');
     liga('pr-term', 'termometro');
     liga('pr-origem', 'origem');
+    liga('pr-mes', 'mes');
+    liga('pr-ano', 'ano');
     document.getElementById('pr-nova').onclick = () => this.abrirForm(null);
     await this.listar();
   },
