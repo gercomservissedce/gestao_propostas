@@ -5,8 +5,13 @@ controle de follow-up, análise por consultor e relatório em PDF para a diretor
 
 ## Como iniciar
 
-Dê dois cliques em **`Iniciar Gestão de Propostas.bat`**. O navegador abre em
-`http://localhost:3050`. Para encerrar, feche a janela preta do terminal.
+Dê dois cliques em **`Iniciar Gestão de Propostas.bat`**. O navegador abre sozinho em
+`http://localhost:3060` assim que o servidor estiver pronto (pode levar alguns segundos).
+Para encerrar, feche a janela preta do terminal.
+
+> A porta é a **3060**. A 3050 (usada antes) é a porta padrão do Firebird, que roda como
+> serviço nesta máquina — o navegador caía no Firebird em vez do sistema e a página não abria.
+> Se precisar de outra porta: `set PORTA=3070` antes do `npm start`.
 
 ## Onde ficam os dados
 

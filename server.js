@@ -5,7 +5,8 @@ const { openDb } = require('./src/db');
 const { criarRotas, CAMINHO_PLANILHA } = require('./src/routes');
 const { importarPlanilha } = require('./src/importer');
 
-const PORTA = process.env.PORTA ? Number(process.env.PORTA) : 3050;
+// 3050 é a porta padrão do Firebird (fbserver.exe); usar outra evita conflito.
+const PORTA = process.env.PORTA ? Number(process.env.PORTA) : 3060;
 const PASTA_DADOS = path.join(__dirname, 'dados');
 
 if (!fs.existsSync(PASTA_DADOS)) fs.mkdirSync(PASTA_DADOS);
@@ -29,8 +30,18 @@ app.get('/relatorio/print', (req, res) => {
   res.sendFile(path.join(__dirname, 'public', 'relatorio-print.html'));
 });
 
-app.listen(PORTA, () => {
+const servidor = app.listen(PORTA, () => {
   console.log(`Gestão de Propostas rodando em http://localhost:${PORTA}`);
+});
+
+servidor.on('error', (err) => {
+  if (err.code === 'EADDRINUSE') {
+    console.error(`\nA porta ${PORTA} já está em uso — provavelmente o sistema já está aberto em outra janela.`);
+    console.error(`Feche a outra janela preta, ou abra direto em http://localhost:${PORTA}\n`);
+  } else {
+    console.error(`\nErro ao iniciar o servidor: ${err.message}\n`);
+  }
+  process.exitCode = 1;
 });
 
 module.exports = { app, db };
