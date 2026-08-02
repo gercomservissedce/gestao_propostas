@@ -138,7 +138,7 @@ Hoje `listar()` liga `onclick` em `alvo.querySelectorAll('tr[data-id]')`, e a fa
 - **Altura:** `height: 30px; width: auto` — mesma altura que o bloco título+subtítulo ocupa hoje, então a barra não muda de altura e o grid não ganha nem perde espaço vertical.
 - **Arquivo:** `public/img/logo-servis.png`, fornecido pelo usuário. Não existe ainda; a pasta `public/img/` é criada nesta mudança.
 - **Fallback:** um handler de `error` no `<img>` substitui a imagem pelo texto "Gestão de Propostas". Isso permite implementar tudo agora sem deixar o cabeçalho quebrado até o arquivo chegar — quando o PNG for salvo no caminho, ele aparece no próximo recarregamento.
-- **Temas:** decidido ao receber o arquivo. Se a logo tiver contraste suficiente sobre a barra nos dois temas, fica uma versão só; se não, entram `logo-servis.png` e `logo-servis-clara.png` alternadas por CSS em `:root[data-theme="dark"]`. Não afeta o resto do design.
+- **Temas:** uma versão só do arquivo. A barra usa `var(--marca-solida)`, que está definido apenas em `:root` (`#17435e`) e **não** é sobrescrito em `:root[data-theme="dark"]` — ou seja, o cabeçalho é o mesmo azul escuro nos dois temas. Basta uma logo que leia sobre esse azul; não há necessidade de versão clara e versão escura.
 
 As regras `.topo-logo`, `.topo h1` e `.topo-sub` em `public/styles.css:89-91` saem, e entra `.topo-marca img { height: 30px; width: auto; display: block; }`.
 
