@@ -42,6 +42,9 @@ function criarRotas(db) {
     if (q.status) { cond.push('p.status = ?'); params.push(q.status); }
     if (q.etapa) { cond.push('p.etapa = ?'); params.push(q.etapa); }
     if (q.origem) { cond.push('p.origem = ?'); params.push(q.origem); }
+    // padStart aceita tanto mes=6 quanto mes=06; strftime('%m') devolve com zero à esquerda
+    if (q.mes) { cond.push("strftime('%m', p.data_emissao) = ?"); params.push(String(q.mes).padStart(2, '0')); }
+    if (q.ano) { cond.push("strftime('%Y', p.data_emissao) = ?"); params.push(String(q.ano)); }
     if (q.termometro === 'NULA') cond.push('p.termometro IS NULL');
     else if (q.termometro) { cond.push('p.termometro = ?'); params.push(q.termometro); }
     if (q.marcadas === '1') cond.push('p.marcada_relatorio = 1');

@@ -187,3 +187,45 @@ test('/propostas/anos não é capturado pela rota /propostas/:id', async () => {
   assert.equal(resposta.status, 200);
   assert.deepEqual(await resposta.json(), []);
 });
+
+test('GET /propostas filtra por mes e por ano de emissão, de forma independente', async () => {
+  const { server, base } = subirApp();
+  after(() => server.close());
+
+  const criar = (numero, data_emissao) => fetch(`${base}/api/propostas`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ filial_id: 1, numero, data_emissao, cliente: 'COND MES' }),
+  });
+  await criar('1', '2026-06-10');
+  await criar('2', '2026-06-28');
+  await criar('3', '2026-07-01');
+  await criar('4', '2025-06-15');
+
+  const numeros = async qs =>
+    (await (await fetch(`${base}/api/propostas?${qs}`)).json()).map(p => p.numero).sort();
+
+  assert.deepEqual(await numeros('mes=06&ano=2026'), ['1', '2'], 'mês e ano juntos');
+  assert.deepEqual(await numeros('mes=06'), ['1', '2', '4'], 'junho de qualquer ano');
+  assert.deepEqual(await numeros('ano=2026'), ['1', '2', '3'], '2026 inteiro');
+  assert.deepEqual(await numeros(''), ['1', '2', '3', '4'], 'sem filtro');
+});
+
+test('mes/ano se somam aos outros filtros em vez de substituí-los', async () => {
+  const { server, base } = subirApp();
+  after(() => server.close());
+
+  const criar = (numero, data_emissao, cliente) => fetch(`${base}/api/propostas`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ filial_id: 1, numero, data_emissao, cliente }),
+  });
+  await criar('1', '2026-06-10', 'COND ALFA');
+  await criar('2', '2026-06-11', 'COND BETA');
+  await criar('3', '2026-07-10', 'COND ALFA');
+
+  const lista = await (await fetch(
+    `${base}/api/propostas?mes=06&ano=2026&cliente=${encodeURIComponent('COND ALFA')}`
+  )).json();
+  assert.deepEqual(lista.map(p => p.numero), ['1']);
+});
