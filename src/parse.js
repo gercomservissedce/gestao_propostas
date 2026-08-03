@@ -31,6 +31,10 @@ function toIsoDate(v) {
   if (serial !== undefined) return serial;
   const s = String(v).trim();
   if (!s) return null;
+  // CSV do ERP: "2026-07-01 00:00:00" — prefixo ISO é inequívoco, ao contrário
+  // do m/d/aaaa da planilha legada.
+  const iso = s.match(/^(\d{4})-(\d{2})-(\d{2})/);
+  if (iso) return `${iso[1]}-${iso[2]}-${iso[3]}`;
   const m = s.match(/^(\d{1,2})\/(\d{1,2})\/(\d{2,4})$/);
   if (!m) return null;
   let [, mes, dia, ano] = m;
@@ -45,6 +49,20 @@ function toNumber(v) {
   if (typeof v === 'number') return v;
   const s = String(v).replace(/R\$|\s/g, '').replace(/,/g, '');
   if (!s || s === '-') return 0;
+  const n = Number(s);
+  return isNaN(n) ? 0 : n;
+}
+
+// Valores do CSV do ERP vêm em formato brasileiro: "R$3383,15" (vírgula
+// decimal) e, quando há milhar, "R$1.234,56". Diferente de toNumber, que trata
+// o formato americano da planilha legada.
+function toNumberBr(v) {
+  if (v == null) return 0;
+  if (typeof v === 'number') return v;
+  let s = String(v).replace(/R\$|\s/g, '');
+  if (!s || s === '-') return 0;
+  if (s.includes(',')) s = s.replace(/\./g, '').replace(',', '.');
+  else if (/^-?\d{1,3}(\.\d{3})+$/.test(s)) s = s.replace(/\./g, ''); // "1.000" = mil
   const n = Number(s);
   return isNaN(n) ? 0 : n;
 }
@@ -85,4 +103,4 @@ function sincronizarFechamento(dados, hoje) {
   return dados;
 }
 
-module.exports = { toIsoDate, toNumber, mapStatus, mapEtapa, normalizar, sincronizarFechamento, serialExcelParaIso };
+module.exports = { toIsoDate, toNumber, toNumberBr, mapStatus, mapEtapa, normalizar, sincronizarFechamento, serialExcelParaIso };

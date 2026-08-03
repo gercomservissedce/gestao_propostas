@@ -1,6 +1,6 @@
 const { test } = require('node:test');
 const assert = require('node:assert');
-const { toIsoDate, toNumber, mapStatus, mapEtapa, normalizar, sincronizarFechamento } = require('../src/parse');
+const { toIsoDate, toNumber, toNumberBr, mapStatus, mapEtapa, normalizar, sincronizarFechamento } = require('../src/parse');
 
 test('toIsoDate converte Date para ISO', () => {
   assert.equal(toIsoDate(new Date(2025, 1, 5)), '2025-02-05');
@@ -90,4 +90,26 @@ test('normalizar ignora acento e caixa (regressão da busca)', () => {
   assert.equal(normalizar('SÃO PAULO'), 'sao paulo');
   assert.equal(normalizar(null), '');
   assert.equal(normalizar(undefined), '');
+});
+
+test('toNumberBr converte formato brasileiro do CSV do ERP', () => {
+  assert.equal(toNumberBr('R$3383,15'), 3383.15);
+  assert.equal(toNumberBr('R$1.234,56'), 1234.56);
+  assert.equal(toNumberBr('R$ 15980,89'), 15980.89);
+  assert.equal(toNumberBr('R$0,00'), 0);
+  assert.equal(toNumberBr('R$1.000'), 1000);
+});
+
+test('toNumberBr aceita número e trata vazio como 0', () => {
+  assert.equal(toNumberBr(424.97), 424.97);
+  assert.equal(toNumberBr(''), 0);
+  assert.equal(toNumberBr(null), 0);
+  assert.equal(toNumberBr(undefined), 0);
+  assert.equal(toNumberBr('-'), 0);
+  assert.equal(toNumberBr('abc'), 0);
+});
+
+test('toIsoDate aceita data ISO com hora (formato do CSV do ERP)', () => {
+  assert.equal(toIsoDate('2026-07-01 00:00:00'), '2026-07-01');
+  assert.equal(toIsoDate('2026-12-31'), '2026-12-31');
 });
