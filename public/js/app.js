@@ -48,6 +48,8 @@ const App = {
         <button class="btn btn-primario" id="cfg-salvar">Salvar</button>
         <span class="espaco"></span>
         <button class="btn" id="cfg-importar" title="Relê a planilha do Modelo e adiciona apenas propostas novas">Reimportar planilha</button>
+        <button class="btn" id="cfg-csv" title="Importa o CSV exportado do ERP: insere as propostas novas e corrige os valores das existentes">Importar CSV do ERP</button>
+        <input type="file" id="cfg-csv-arquivo" accept=".csv" class="oculta">
       </div>
     `;
     this.abrirModal();
@@ -76,6 +78,10 @@ const App = {
         aviso(err.message, true);
       } finally { e.target.disabled = false; }
     };
+    document.getElementById('cfg-csv').onclick = () => {
+      document.getElementById('cfg-csv-arquivo').click();
+    };
+    document.getElementById('cfg-csv-arquivo').onchange = e => ImportacaoCsv.escolher(e.target);
   },
 };
 
