@@ -5,6 +5,7 @@ const { getConfig, dashboardStats, consultorStats } = require('./stats');
 const { normalizar, sincronizarFechamento } = require('./parse');
 const { atualizarProposta, CAMPOS_PROPOSTA } = require('./propostaUpdate');
 const { gerarPlanilhaConsultor, importarAtualizacoesConsultor } = require('./consultorPlanilha');
+const { csvParaTexto, planejarImportacaoCsv, aplicarImportacaoCsv } = require('./csvPropostas');
 
 function hojeLocalIso() {
   const d = new Date();
@@ -187,6 +188,27 @@ function criarRotas(db) {
       res.json(importarPlanilha(db, CAMINHO_PLANILHA));
     } catch (e) {
       res.status(500).json({ erro: `Falha na importação: ${e.message}` });
+    }
+  });
+
+  function textoCsvDoCorpo(body) {
+    if (!body || !body.arquivo) throw new Error('Nenhum arquivo enviado');
+    return csvParaTexto(Buffer.from(body.arquivo, 'base64'));
+  }
+
+  r.post('/importar-csv/previa', (req, res) => {
+    try {
+      res.json(planejarImportacaoCsv(db, textoCsvDoCorpo(req.body)));
+    } catch (e) {
+      res.status(400).json({ erro: e.message });
+    }
+  });
+
+  r.post('/importar-csv', (req, res) => {
+    try {
+      res.json(aplicarImportacaoCsv(db, textoCsvDoCorpo(req.body)));
+    } catch (e) {
+      res.status(400).json({ erro: e.message });
     }
   });
 

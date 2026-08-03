@@ -229,3 +229,59 @@ test('mes/ano se somam aos outros filtros em vez de substituí-los', async () =>
   )).json();
   assert.deepEqual(lista.map(p => p.numero), ['1']);
 });
+
+const CABECALHO_CSV = 'CODFIL,SIGFIL,Nº PROP.,DATA,NOME DO CLIENTE,TIPO NEGOC.,STATUS,'
+  + 'DT. FECHADA,VLR. COMOD.,VLR. SERV. AD.,VLR. MENSAL,VLR.TX.ADESÃO,VLR. VENDA,'
+  + 'VLR. INSTAL.,VLR.SRV.ESP.,VLR. TOTAL,VLR. DESC.,VLR. TOTAL C/DESC.,'
+  + 'REPRESENTANTE,DescricaoProposta,Observacao';
+
+const LINHA_CSV = '1001,"Servis Eletrônica Ceará",27178,2026-07-08 00:00:00,'
+  + '"CONDOMINIO GREEN VILLAGE",PORTARIA INTELIGENTE,Analise Cliente,,"R$3383,15",'
+  + '"R$35,00","R$3418,15",,"R$0,00",,,"R$3418,15",,"R$3418,15",'
+  + '"LUIS JOSE SANTIAGO CAMPOS",,';
+
+function csvBase64(...linhas) {
+  return Buffer.from(`\uFEFF${CABECALHO_CSV}\r\n${linhas.join('\r\n')}\r\n`, 'utf8').toString('base64');
+}
+
+test('POST /importar-csv/previa mostra o plano sem gravar; /importar-csv grava', async () => {
+  const { db, server, base } = subirApp();
+  after(() => server.close());
+
+  const previa = await (await fetch(`${base}/api/importar-csv/previa`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ arquivo: csvBase64(LINHA_CSV) }),
+  })).json();
+  assert.equal(previa.novas.length, 1);
+  assert.equal(previa.novas[0].numero, '27178');
+  assert.deepEqual(previa.consultoresNovos, ['LUIS JOSE SANTIAGO CAMPOS']);
+  assert.equal(db.prepare('SELECT COUNT(*) n FROM propostas').get().n, 0);
+
+  const resumo = await (await fetch(`${base}/api/importar-csv`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ arquivo: csvBase64(LINHA_CSV) }),
+  })).json();
+  assert.equal(resumo.inseridas, 1);
+  assert.equal(db.prepare('SELECT COUNT(*) n FROM propostas').get().n, 1);
+});
+
+test('POST /importar-csv recusa arquivo que não é do ERP e corpo sem arquivo', async () => {
+  const { server, base } = subirApp();
+  after(() => server.close());
+
+  const enviar = corpo => fetch(`${base}/api/importar-csv`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(corpo),
+  });
+
+  const errada = await enviar({ arquivo: Buffer.from('A,B\n1,2\n').toString('base64') });
+  assert.equal(errada.status, 400);
+  assert.match((await errada.json()).erro, /CODFIL/);
+
+  const vazio = await enviar({});
+  assert.equal(vazio.status, 400);
+  assert.match((await vazio.json()).erro, /arquivo/i);
+});
