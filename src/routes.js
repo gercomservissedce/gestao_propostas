@@ -42,6 +42,9 @@ function criarRotas(db) {
     if (q.status) { cond.push('p.status = ?'); params.push(q.status); }
     if (q.etapa) { cond.push('p.etapa = ?'); params.push(q.etapa); }
     if (q.origem) { cond.push('p.origem = ?'); params.push(q.origem); }
+    // padStart aceita tanto mes=6 quanto mes=06; strftime('%m') devolve com zero à esquerda
+    if (q.mes) { cond.push("strftime('%m', p.data_emissao) = ?"); params.push(String(q.mes).padStart(2, '0')); }
+    if (q.ano) { cond.push("strftime('%Y', p.data_emissao) = ?"); params.push(String(q.ano)); }
     if (q.termometro === 'NULA') cond.push('p.termometro IS NULL');
     else if (q.termometro) { cond.push('p.termometro = ?'); params.push(q.termometro); }
     if (q.marcadas === '1') cond.push('p.marcada_relatorio = 1');
@@ -63,6 +66,17 @@ function criarRotas(db) {
       rows = rows.filter(p => normalizar(p.cliente).includes(alvo) || normalizar(p.numero).includes(alvo));
     }
     res.json(rows);
+  });
+
+  // Precisa vir ANTES de '/propostas/:id': o Express casa as rotas na ordem
+  // de declaração e 'anos' seria lido como um id de proposta.
+  r.get('/propostas/anos', (req, res) => {
+    res.json(db.prepare(`
+      SELECT DISTINCT strftime('%Y', data_emissao) ano
+      FROM propostas
+      WHERE data_emissao IS NOT NULL AND data_emissao <> ''
+      ORDER BY ano DESC
+    `).all().map(r2 => r2.ano));
   });
 
   r.get('/propostas/:id', (req, res) => {

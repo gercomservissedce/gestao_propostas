@@ -85,10 +85,10 @@ button.btn, .modal-caixa, .tabela th, .tabela td {
   padding: 10px 24px; height: 58px;
   position: sticky; top: 0; z-index: 20;
 }
-.topo-marca { display: flex; align-items: center; gap: 10px; }
-.topo-logo { font-size: 26px; }
-.topo h1 { font-size: 17px; font-weight: 650; letter-spacing: .2px; }
-.topo-sub { font-size: 11px; opacity: .75; text-transform: uppercase; letter-spacing: 1px; }
+/* Mesma altura que o bloco título+subtítulo ocupava, para a barra não mudar de altura.
+   O font-size/weight vale para o texto de fallback quando a logo não carrega. */
+.topo-marca { display: flex; align-items: center; gap: 10px; font-size: 17px; font-weight: 650; }
+.topo-marca img { height: 30px; width: auto; display: block; }
 .topo-espaco { flex: 1; }
 .aba:focus-visible, button:focus-visible, input:focus-visible, select:focus-visible {
   outline: 2px solid #7fb2d9; outline-offset: 1px;
@@ -214,6 +214,25 @@ table.tabela { width: 100%; border-collapse: collapse; font-size: 13px; }
 .num { font-variant-numeric: tabular-nums; text-align: right; white-space: nowrap; }
 .tabela .cod { font-family: Consolas, monospace; font-size: 12.5px; }
 .rolagem { overflow-x: auto; }
+
+/* ===== Faixa de mês no grid de Propostas ===== */
+.tabela tr.grupo-mes { cursor: pointer; user-select: none; }
+/* anula o hover genérico de linha, que aqui atrapalharia a leitura da faixa */
+.tabela tbody tr.grupo-mes:hover { background: transparent; }
+.tabela tr.grupo-mes td { padding: 0; border-bottom: 1px solid var(--borda); }
+.grupo-mes-faixa {
+  display: flex; align-items: center; gap: 10px;
+  background: var(--marca-claro); border-left: 3px solid var(--marca);
+  padding: 7px 12px;
+  font-size: 12px; font-weight: 700; letter-spacing: .9px; text-transform: uppercase;
+}
+.grupo-mes-seta { width: 12px; color: var(--tinta-2); font-size: 11px; }
+.grupo-mes-totais {
+  margin-left: auto; color: var(--tinta-2);
+  font-size: 11.5px; font-weight: 400; letter-spacing: 0; text-transform: none;
+  font-variant-numeric: tabular-nums;
+}
+.grupo-mes-totais b { color: var(--tinta); font-weight: 650; }
 
 /* ===== Consultores: cards ===== */
 .cons-contador { margin-left: auto; align-self: center; font-size: 12px; color: var(--tinta-2); }

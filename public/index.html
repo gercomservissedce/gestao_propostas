@@ -18,13 +18,10 @@
 <body>
 
 <header class="topo">
-  <div class="topo-marca">
-    <span class="topo-logo">🌡️</span>
-    <div>
-      <h1>Gestão de Propostas</h1>
-      <span class="topo-sub">Acompanhamento comercial</span>
-    </div>
-  </div>
+  <span class="topo-marca" id="topo-marca">
+    <img src="img/logo-servis.png" alt="Servis Eletrônica"
+         onerror="this.remove(); document.getElementById('topo-marca').textContent = 'Gestão de Propostas';">
+  </span>
   <span class="topo-espaco"></span>
   <button class="btn-icone" id="btn-tema" title="Alternar tema claro/escuro">🌙</button>
   <button class="btn-icone" id="btn-config" title="Configurações">⚙</button>

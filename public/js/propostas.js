@@ -12,15 +12,20 @@ const CAMPOS_CUSTO = [
 ];
 
 const Propostas = {
-  filtros: { busca: '', cliente: '', filial_id: '', consultor_id: '', status: 'ATIVA', etapa: '', termometro: '', origem: '' },
+  filtros: { busca: '', cliente: '', filial_id: '', consultor_id: '', status: 'ATIVA', etapa: '', termometro: '', origem: '', mes: '', ano: '' },
   filiais: [],
   consultores: [],
   diasAlerta: 30,
+  // Chaves 'AAAA-MM' dos meses recolhidos. Fica no objeto (e não em
+  // localStorage) para sobreviver a trocas de filtro, mas recomeçar
+  // tudo aberto a cada recarregamento da página.
+  mesesRecolhidos: new Set(),
 
   async carregar() {
     const tela = document.getElementById('tela-propostas');
-    const [filiais, consultores, cfg, clientes] = await Promise.all([
-      apiGet('/api/filiais'), apiGet('/api/consultores'), apiGet('/api/config'), apiGet('/api/clientes'),
+    const [filiais, consultores, cfg, clientes, anos] = await Promise.all([
+      apiGet('/api/filiais'), apiGet('/api/consultores'), apiGet('/api/config'),
+      apiGet('/api/clientes'), apiGet('/api/propostas/anos'),
     ]);
     this.filiais = filiais;
     this.consultores = consultores;
@@ -60,6 +65,17 @@ const Propostas = {
           <option value="">Todas</option>
           ${ORIGENS.map(o => `<option ${o === this.filtros.origem ? 'selected' : ''}>${o}</option>`).join('')}
         </select></div>
+        <div class="campo"><label>Mês</label><select id="pr-mes">
+          <option value="">Todos</option>
+          ${NOMES_MES.map((nome, i) => {
+            const v = String(i + 1).padStart(2, '0');
+            return `<option value="${v}" ${v === this.filtros.mes ? 'selected' : ''}>${nome}</option>`;
+          }).join('')}
+        </select></div>
+        <div class="campo"><label>Ano</label><select id="pr-ano">
+          <option value="">Todos</option>
+          ${anos.map(a => `<option ${a === this.filtros.ano ? 'selected' : ''}>${esc(a)}</option>`).join('')}
+        </select></div>
         <button class="btn btn-primario" id="pr-nova">+ Nova proposta</button>
       </div>
       <div class="cartao"><div class="rolagem" id="pr-tabela">Carregando…</div></div>
@@ -87,8 +103,43 @@ const Propostas = {
     liga('pr-etapa', 'etapa');
     liga('pr-term', 'termometro');
     liga('pr-origem', 'origem');
+    liga('pr-mes', 'mes');
+    liga('pr-ano', 'ano');
     document.getElementById('pr-nova').onclick = () => this.abrirForm(null);
     await this.listar();
+  },
+
+  // A API devolve ordenado por data_emissao DESC, então basta varrer em ordem
+  // e quebrar quando a chave AAAA-MM muda. Propostas sem data caem em
+  // 'sem-data', que o SQLite já deixa no fim da ordenação decrescente.
+  agrupar(lista) {
+    const grupos = [];
+    let atual = null;
+    for (const p of lista) {
+      const chave = p.data_emissao ? String(p.data_emissao).slice(0, 7) : 'sem-data';
+      if (!atual || atual.chave !== chave) {
+        atual = { chave, itens: [], total: 0 };
+        grupos.push(atual);
+      }
+      atual.itens.push(p);
+      atual.total += p.vlr_total || 0;
+    }
+    return grupos;
+  },
+
+  faixaMes(g) {
+    const recolhido = this.mesesRecolhidos.has(g.chave);
+    const plural = g.itens.length === 1 ? 'proposta' : 'propostas';
+    return `
+      <tr class="grupo-mes" data-mes="${esc(g.chave)}">
+        <td colspan="11">
+          <div class="grupo-mes-faixa">
+            <span class="grupo-mes-seta">${recolhido ? '▸' : '▾'}</span>
+            <span>${esc(fmtMesAno(g.chave))}</span>
+            <span class="grupo-mes-totais">${g.itens.length} ${plural} · <b>${fmtMoeda(g.total)}</b></span>
+          </div>
+        </td>
+      </tr>`;
   },
 
   async listar() {
@@ -103,6 +154,23 @@ const Propostas = {
       ? `<span class="badge badge-${t}">${t}</span>`
       : '<span class="badge badge-NC">sem classif.</span>';
 
+    const linha = (p, chave) => `
+      <tr class="clicavel${this.mesesRecolhidos.has(chave) ? ' oculta' : ''}" data-id="${p.id}" data-mes="${esc(chave)}">
+        <td class="cod">${esc(p.numero)}</td>
+        <td class="num">${fmtData(p.data_emissao)}</td>
+        <td>${esc(p.cliente)}</td>
+        <td>${esc(p.filial || '')}</td>
+        <td>${esc((p.consultor || '—').split(' ').slice(0, 2).join(' '))}</td>
+        <td class="num">${fmtMoeda(p.vlr_total)}</td>
+        <td>${badgeTerm(p.termometro)}</td>
+        <td style="font-size:11.5px">${esc((p.etapa || '—').toLowerCase())}</td>
+        <td style="font-size:11.5px">${esc(p.origem || '—')}</td>
+        <td class="num">${p.status === 'ATIVA' && p.dias_sem_contato > this.diasAlerta
+          ? `<span class="badge badge-alerta" title="Sem contato há ${p.dias_sem_contato} dias">${p.ultima_data_contato ? fmtData(p.ultima_data_contato) : 'nunca'} ⚠</span>`
+          : (p.ultima_data_contato ? fmtData(p.ultima_data_contato) : '—')}</td>
+        <td><span class="badge badge-${p.status}">${p.status}</span></td>
+      </tr>`;
+
     alvo.innerHTML = `
       <p style="margin-bottom:8px;color:var(--tinta-2);font-size:12.5px">${lista.length} proposta(s) · ${fmtMoeda(lista.reduce((s, p) => s + (p.vlr_total || 0), 0))}</p>
       <table class="tabela">
@@ -111,25 +179,27 @@ const Propostas = {
         <th style="text-align:right">Valor total</th><th>Termômetro</th><th>Etapa</th><th>Origem</th><th>Últ. contato</th><th>Status</th>
       </tr></thead>
       <tbody>
-        ${lista.map(p => `
-        <tr class="clicavel" data-id="${p.id}">
-          <td class="cod">${esc(p.numero)}</td>
-          <td class="num">${fmtData(p.data_emissao)}</td>
-          <td>${esc(p.cliente)}</td>
-          <td>${esc(p.filial || '')}</td>
-          <td>${esc((p.consultor || '—').split(' ').slice(0, 2).join(' '))}</td>
-          <td class="num">${fmtMoeda(p.vlr_total)}</td>
-          <td>${badgeTerm(p.termometro)}</td>
-          <td style="font-size:11.5px">${esc((p.etapa || '—').toLowerCase())}</td>
-          <td style="font-size:11.5px">${esc(p.origem || '—')}</td>
-          <td class="num">${p.status === 'ATIVA' && p.dias_sem_contato > this.diasAlerta
-            ? `<span class="badge badge-alerta" title="Sem contato há ${p.dias_sem_contato} dias">${p.ultima_data_contato ? fmtData(p.ultima_data_contato) : 'nunca'} ⚠</span>`
-            : (p.ultima_data_contato ? fmtData(p.ultima_data_contato) : '—')}</td>
-          <td><span class="badge badge-${p.status}">${p.status}</span></td>
-        </tr>`).join('')}
+        ${this.agrupar(lista).map(g =>
+          this.faixaMes(g) + g.itens.map(p => linha(p, g.chave)).join('')
+        ).join('')}
       </tbody></table>`;
-    alvo.querySelectorAll('tr[data-id]').forEach(tr => {
+
+    // Só as linhas de proposta abrem o formulário — a faixa do mês não tem data-id
+    // e o seletor deixa isso explícito em vez de depender disso.
+    alvo.querySelectorAll('tr.clicavel[data-id]').forEach(tr => {
       tr.onclick = () => this.abrirDetalhe(Number(tr.dataset.id));
+    });
+
+    alvo.querySelectorAll('tr.grupo-mes').forEach(tr => {
+      tr.onclick = () => {
+        const chave = tr.dataset.mes;
+        const recolher = !this.mesesRecolhidos.has(chave);
+        if (recolher) this.mesesRecolhidos.add(chave);
+        else this.mesesRecolhidos.delete(chave);
+        tr.querySelector('.grupo-mes-seta').textContent = recolher ? '▸' : '▾';
+        alvo.querySelectorAll(`tr.clicavel[data-mes="${CSS.escape(chave)}"]`)
+          .forEach(l => l.classList.toggle('oculta', recolher));
+      };
     });
   },
 

@@ -24,3 +24,16 @@ function esc(s) {
     '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;',
   }[c]));
 }
+
+const NOMES_MES = [
+  'Janeiro', 'Fevereiro', 'Março', 'Abril', 'Maio', 'Junho',
+  'Julho', 'Agosto', 'Setembro', 'Outubro', 'Novembro', 'Dezembro',
+];
+
+// '2026-07' -> 'Julho 2026'. Chave vazia ou inválida -> 'Sem data'.
+function fmtMesAno(chave) {
+  const [ano, mes] = String(chave || '').split('-');
+  const nome = NOMES_MES[Number(mes) - 1];
+  if (!nome || !/^\d{4}$/.test(ano)) return 'Sem data';
+  return `${nome} ${ano}`;
+}
