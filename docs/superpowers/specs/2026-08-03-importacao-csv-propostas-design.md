@@ -152,15 +152,22 @@ ANSI/Windows-1252 —, é redecodificado como latin1.
 
 ```js
 {
-  novas: [{ linha, numero, filial_codigo, cliente, vlr_total }],
+  novas: [{ linha, numero, filial_codigo, cliente, vlr_total, dados }],
   atualizadas: [{ linha, id, numero, cliente,
-                  mudancas: [{ campo, de, para }] }],
+                  mudancas: [{ campo, de, para }], dados }],
   semMudanca: 0,          // já existem e estão iguais ao CSV
   invalidas: [{ linha, motivo }],
-  filiaisNovas: ['4001'], // códigos que serão criados
+  filiaisNovas: [{ codigo: '4001', nome: 'Servis Eletrônica Bahia' }],
   consultoresNovos: ['NOME'],
 }
 ```
+
+`dados` é o objeto pronto para gravar (nas novas, todas as colunas do INSERT; nas
+atualizadas, só as que mudaram). `mudancas` existe para exibição — nela o
+representante aparece como `campo: 'consultor'` com o **nome**, não o id.
+
+O representante só é atualizado quando o CSV traz nome: `REPRESENTANTE` vazio não
+apaga o consultor da proposta, pela mesma razão de `descricao`/`observacao`.
 
 `aplicarImportacaoCsv(db, texto)` devolve:
 
