@@ -215,6 +215,25 @@ table.tabela { width: 100%; border-collapse: collapse; font-size: 13px; }
 .tabela .cod { font-family: Consolas, monospace; font-size: 12.5px; }
 .rolagem { overflow-x: auto; }
 
+/* ===== Faixa de mês no grid de Propostas ===== */
+.tabela tr.grupo-mes { cursor: pointer; user-select: none; }
+/* anula o hover genérico de linha, que aqui atrapalharia a leitura da faixa */
+.tabela tbody tr.grupo-mes:hover { background: transparent; }
+.tabela tr.grupo-mes td { padding: 0; border-bottom: 1px solid var(--borda); }
+.grupo-mes-faixa {
+  display: flex; align-items: center; gap: 10px;
+  background: var(--marca-claro); border-left: 3px solid var(--marca);
+  padding: 7px 12px;
+  font-size: 12px; font-weight: 700; letter-spacing: .9px; text-transform: uppercase;
+}
+.grupo-mes-seta { width: 12px; color: var(--tinta-2); font-size: 11px; }
+.grupo-mes-totais {
+  margin-left: auto; color: var(--tinta-2);
+  font-size: 11.5px; font-weight: 400; letter-spacing: 0; text-transform: none;
+  font-variant-numeric: tabular-nums;
+}
+.grupo-mes-totais b { color: var(--tinta); font-weight: 650; }
+
 /* ===== Consultores: cards ===== */
 .cons-contador { margin-left: auto; align-self: center; font-size: 12px; color: var(--tinta-2); }
 .rep-grade { display: grid; grid-template-columns: repeat(auto-fill, minmax(300px, 1fr)); gap: 14px; }
