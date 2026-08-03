@@ -31,6 +31,8 @@ CREATE TABLE IF NOT EXISTS propostas (
   vlr_instalacao REAL DEFAULT 0,
   vlr_serv_especial REAL DEFAULT 0,
   vlr_total REAL DEFAULT 0,
+  vlr_desconto REAL DEFAULT 0,
+  vlr_total_com_desconto REAL DEFAULT 0,
   consultor_id INTEGER REFERENCES consultores(id),
   descricao TEXT,
   observacao TEXT,
@@ -73,6 +75,8 @@ const MIGRACOES_PROPOSTAS = {
   custo_dep02: 'REAL',
   roi_dep02: 'REAL',
   origem: 'TEXT',
+  vlr_desconto: 'REAL DEFAULT 0',
+  vlr_total_com_desconto: 'REAL DEFAULT 0',
 };
 
 function migrar(db) {

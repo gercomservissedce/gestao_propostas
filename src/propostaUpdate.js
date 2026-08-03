@@ -7,6 +7,7 @@ const CAMPOS_PROPOSTA = [
   'descricao', 'observacao', 'termometro', 'proxima_data_contato',
   'marcada_relatorio', 'valor_minimo_fechamento',
   'custo_dep01', 'roi_dep01', 'custo_dep02', 'roi_dep02', 'origem',
+  'vlr_desconto', 'vlr_total_com_desconto',
 ];
 
 function atualizarProposta(db, id, dados, hoje) {

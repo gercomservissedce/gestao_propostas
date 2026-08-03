@@ -33,6 +33,14 @@ test('propostas tem coluna origem', () => {
   assert.ok(colunas.includes('origem'), 'coluna origem deve existir');
 });
 
+test('propostas tem colunas de desconto do CSV do ERP', () => {
+  const db = openDb(':memory:');
+  const colunas = db.prepare('PRAGMA table_info(propostas)').all().map(c => c.name);
+  for (const c of ['vlr_desconto', 'vlr_total_com_desconto']) {
+    assert.ok(colunas.includes(c), `coluna ${c} deve existir`);
+  }
+});
+
 test('openDb migra banco antigo sem colunas de custo', () => {
   const fs = require('node:fs');
   const os = require('node:os');
@@ -55,13 +63,15 @@ test('openDb migra banco antigo sem colunas de custo', () => {
 
   const db = openDb(arquivo);
   const colunas = db.prepare('PRAGMA table_info(propostas)').all().map(c => c.name);
-  for (const c of ['custo_dep01', 'roi_dep01', 'custo_dep02', 'roi_dep02', 'origem']) {
+  for (const c of ['custo_dep01', 'roi_dep01', 'custo_dep02', 'roi_dep02', 'origem',
+                   'vlr_desconto', 'vlr_total_com_desconto']) {
     assert.ok(colunas.includes(c), `coluna ${c} deve ser adicionada na migração`);
   }
   const antiga = db.prepare("SELECT * FROM propostas WHERE numero = '100'").get();
   assert.equal(antiga.cliente, 'COND ANTIGO');
   assert.equal(antiga.custo_dep01, null);
   assert.equal(antiga.origem, null);
+  assert.equal(antiga.vlr_desconto, 0); // DEFAULT 0 preenche as linhas antigas
   db.close();
   fs.rmSync(dir, { recursive: true, force: true });
 });
