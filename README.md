@@ -40,10 +40,27 @@ Para encerrar, feche a janela preta do terminal.
   e clique em "Gerar PDF". O arquivo fica em `relatorios/`.
 - **🌙/☀ Tema** — alterna entre claro e escuro; a preferência fica salva no navegador.
 - **⚙ Configurações** — probabilidades do termômetro (quente/morno/frio), prazo do alerta
-  de proposta esquecida e reimportação da planilha (adiciona só propostas novas, sem duplicar).
+  de proposta esquecida, reimportação da planilha (adiciona só propostas novas, sem duplicar)
+  e **importação do CSV do ERP**.
 
 Ao marcar uma proposta como **Fechada**, a data de fechamento e a etapa são preenchidas
 automaticamente (a data pode ser ajustada antes de salvar). Reabrir a proposta limpa as duas.
+
+### Importar o CSV do ERP
+
+Em **⚙ Configurações → Importar CSV do ERP**, escolha o arquivo exportado do ERP
+(`RELAÇÃO DAS PROPOSTAS ATUALIZADA <data>.csv`). O sistema mostra uma prévia com o que
+vai acontecer — quantas propostas são novas, quais valores serão corrigidos, quais filiais
+e representantes serão criados e quais linhas têm problema — e só grava depois do
+**Confirmar importação**.
+
+A importação **insere** as propostas que faltam e **corrige** os valores das que já
+existem. Ela nunca mexe no acompanhamento feito aqui: status, etapa, termômetro, próximo
+contato, histórico de contatos, custos DEP/ROI e a marcação do relatório ficam como estão.
+Descrição e observação só são sobrescritas quando o CSV traz texto — campo vazio no ERP
+não apaga o que você escreveu.
+
+Pode importar o mesmo arquivo duas vezes sem medo: na segunda vez nada muda.
 
 ## Requisitos
 
