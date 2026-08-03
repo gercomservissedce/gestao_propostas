@@ -1,5 +1,6 @@
 const { parseCsv } = require('./csv');
 const { toIsoDate, toNumberBr } = require('./parse');
+const { atualizarProposta } = require('./propostaUpdate');
 
 const COLUNAS_OBRIGATORIAS = ['CODFIL', 'Nº PROP.', 'DATA', 'NOME DO CLIENTE', 'VLR. TOTAL'];
 
@@ -162,6 +163,50 @@ function planejarImportacaoCsv(db, texto) {
   return plano;
 }
 
+function aplicarImportacaoCsv(db, texto) {
+  const insFilial = db.prepare(
+    "INSERT OR IGNORE INTO filiais (codigo, tipo, estado) VALUES (?, 'FILIAL', ?)"
+  );
+  const insConsultor = db.prepare(
+    "INSERT OR IGNORE INTO consultores (nome, tipo) VALUES (?, 'FRANQUEADO')"
+  );
+  const insProposta = db.prepare(`
+    INSERT INTO propostas (${CAMPOS_INSERT.join(', ')})
+    VALUES (${CAMPOS_INSERT.map(() => '?').join(', ')})
+  `);
+
+  const resumo = {
+    inseridas: 0, atualizadas: 0, semMudanca: 0, invalidas: 0,
+    filiaisCriadas: 0, consultoresCriados: 0,
+  };
+
+  const aplicar = db.transaction(() => {
+    const previa = planejarImportacaoCsv(db, texto);
+    for (const f of previa.filiaisNovas) resumo.filiaisCriadas += insFilial.run(f.codigo, f.nome).changes;
+    for (const nome of previa.consultoresNovos) resumo.consultoresCriados += insConsultor.run(nome).changes;
+
+    // Replaneja com as filiais e consultores já criados: assim filial_id e
+    // consultor_id estão resolvidos e a gravação não tem caso especial.
+    const plano = planejarImportacaoCsv(db, texto);
+    resumo.semMudanca = plano.semMudanca;
+    resumo.invalidas = plano.invalidas.length;
+
+    for (const nova of plano.novas) {
+      insProposta.run(...CAMPOS_INSERT.map(c => nova.dados[c] ?? null));
+      resumo.inseridas++;
+    }
+    for (const alvo of plano.atualizadas) {
+      // atualizarProposta nunca recebe status aqui, então o sincronizarFechamento
+      // embutido nele não mexe em etapa nem em data de fechamento.
+      const { changes } = atualizarProposta(db, alvo.id, { ...alvo.dados }, null);
+      if (changes) resumo.atualizadas++;
+    }
+  });
+  aplicar();
+
+  return resumo;
+}
+
 module.exports = {
-  csvParaTexto, planejarImportacaoCsv, CAMPOS_INSERT, COLUNAS_OBRIGATORIAS,
+  csvParaTexto, planejarImportacaoCsv, aplicarImportacaoCsv, CAMPOS_INSERT, COLUNAS_OBRIGATORIAS,
 };

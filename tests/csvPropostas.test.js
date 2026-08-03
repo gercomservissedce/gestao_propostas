@@ -1,7 +1,7 @@
 const { test } = require('node:test');
 const assert = require('node:assert');
 const { openDb } = require('../src/db');
-const { planejarImportacaoCsv, csvParaTexto } = require('../src/csvPropostas');
+const { planejarImportacaoCsv, aplicarImportacaoCsv, csvParaTexto } = require('../src/csvPropostas');
 
 const CABECALHO = 'CODFIL,SIGFIL,Nº PROP.,DATA,NOME DO CLIENTE,TIPO NEGOC.,STATUS,'
   + 'DT. FECHADA,VLR. COMOD.,VLR. SERV. AD.,VLR. MENSAL,VLR.TX.ADESÃO,VLR. VENDA,'
@@ -160,6 +160,103 @@ test('planejar recusa arquivo sem as colunas do ERP e arquivo vazio', () => {
   const db = bancoBase();
   assert.throws(() => planejarImportacaoCsv(db, 'A,B\n1,2\n'), /CODFIL/);
   assert.throws(() => planejarImportacaoCsv(db, `${CABECALHO}\n`), /vazio/i);
+});
+
+test('aplicar insere as novas, criando filial e consultor que faltavam', () => {
+  const db = bancoBase();
+  const resumo = aplicarImportacaoCsv(db, csv(
+    linha(),
+    linha({ CODFIL: '4001', SIGFIL: 'Servis Eletrônica Bahia', numero: '9', representante: 'NOVO REPRESENTANTE' }),
+  ));
+  assert.equal(resumo.inseridas, 2);
+  assert.equal(resumo.filiaisCriadas, 1);
+  assert.equal(resumo.consultoresCriados, 1);
+
+  const p = db.prepare(`SELECT p.*, f.codigo filial_codigo, c.nome consultor
+    FROM propostas p JOIN filiais f ON f.id = p.filial_id
+    LEFT JOIN consultores c ON c.id = p.consultor_id WHERE p.numero = '9'`).get();
+  assert.equal(p.filial_codigo, '4001');
+  assert.equal(p.consultor, 'NOVO REPRESENTANTE');
+  assert.equal(p.status, 'ATIVA');
+  assert.equal(p.etapa, 'ANALISE CLIENTE');
+  assert.equal(p.vlr_total, 3418.15);
+
+  const filial = db.prepare("SELECT * FROM filiais WHERE codigo = '4001'").get();
+  assert.equal(filial.estado, 'Servis Eletrônica Bahia');
+  assert.equal(filial.tipo, 'FILIAL');
+});
+
+test('aplicar corrige o valor e preserva todo o acompanhamento do app', () => {
+  const db = bancoBase();
+  const id = db.prepare(`INSERT INTO propostas (filial_id, numero, data_emissao, cliente, status,
+    etapa, termometro, proxima_data_contato, data_fechamento, custo_dep01, roi_dep01,
+    marcada_relatorio, observacao, vlr_comodato, vlr_serv_adicional, vlr_mensal,
+    vlr_total, vlr_total_com_desconto, consultor_id)
+    VALUES (1,'27178','2026-07-08','CONDOMINIO GREEN VILLAGE','PERDIDA','PERDIDO','QUENTE',
+    '2026-08-10','2026-07-30', 500, 12, 1, 'ANOTACAO DO APP',
+    3383.15, 35, 3418.15, 3000, 3000, 1)`).run().lastInsertRowid;
+  db.prepare("INSERT INTO contatos (proposta_id, data, anotacao) VALUES (?, '2026-07-20', 'ligou')").run(id);
+
+  const resumo = aplicarImportacaoCsv(db, csv(linha()));
+  assert.equal(resumo.inseridas, 0);
+  assert.equal(resumo.atualizadas, 1);
+
+  const p = db.prepare('SELECT * FROM propostas WHERE id = ?').get(id);
+  assert.equal(p.vlr_total, 3418.15);            // corrigido pelo ERP
+  assert.equal(p.status, 'PERDIDA');             // preservado
+  assert.equal(p.etapa, 'PERDIDO');
+  assert.equal(p.termometro, 'QUENTE');
+  assert.equal(p.proxima_data_contato, '2026-08-10');
+  assert.equal(p.data_fechamento, '2026-07-30');
+  assert.equal(p.custo_dep01, 500);
+  assert.equal(p.roi_dep01, 12);
+  assert.equal(p.marcada_relatorio, 1);
+  assert.equal(p.observacao, 'ANOTACAO DO APP');
+  assert.equal(db.prepare('SELECT COUNT(*) n FROM contatos WHERE proposta_id = ?').get(id).n, 1);
+});
+
+test('aplicar duas vezes não muda nada na segunda (idempotente)', () => {
+  const db = bancoBase();
+  const primeira = aplicarImportacaoCsv(db, csv(linha(), linha({ numero: '2' })));
+  assert.equal(primeira.inseridas, 2);
+  const segunda = aplicarImportacaoCsv(db, csv(linha(), linha({ numero: '2' })));
+  assert.equal(segunda.inseridas, 0);
+  assert.equal(segunda.atualizadas, 0);
+  assert.equal(segunda.semMudanca, 2);
+  assert.equal(db.prepare('SELECT COUNT(*) n FROM propostas').get().n, 2);
+});
+
+test('aplicar conta as inválidas e não grava nada delas', () => {
+  const db = bancoBase();
+  const resumo = aplicarImportacaoCsv(db, csv(
+    linha({ numero: '1', cliente: '' }),
+    linha({ numero: '2' }),
+  ));
+  assert.equal(resumo.invalidas, 1);
+  assert.equal(resumo.inseridas, 1);
+  assert.equal(db.prepare('SELECT COUNT(*) n FROM propostas').get().n, 1);
+});
+
+test('planejar não grava nada (prévia é só leitura)', () => {
+  const db = bancoBase();
+  planejarImportacaoCsv(db, csv(linha()));
+  assert.equal(db.prepare('SELECT COUNT(*) n FROM propostas').get().n, 0);
+  assert.equal(db.prepare('SELECT COUNT(*) n FROM consultores').get().n, 1);
+});
+
+test('aplicar troca o consultor quando o representante do ERP mudou', () => {
+  const db = bancoBase();
+  const outro = db.prepare("INSERT INTO consultores (nome, tipo) VALUES ('OUTRO CONSULTOR','CLT')")
+    .run().lastInsertRowid;
+  db.prepare(`INSERT INTO propostas (filial_id, numero, data_emissao, cliente, status,
+    vlr_comodato, vlr_serv_adicional, vlr_mensal, vlr_total, vlr_total_com_desconto, consultor_id)
+    VALUES (1,'27178','2026-07-08','CONDOMINIO GREEN VILLAGE','ATIVA',
+    3383.15, 35, 3418.15, 3418.15, 3418.15, ?)`).run(outro);
+
+  aplicarImportacaoCsv(db, csv(linha()));
+  const p = db.prepare(`SELECT c.nome consultor FROM propostas p
+    JOIN consultores c ON c.id = p.consultor_id WHERE p.numero = '27178'`).get();
+  assert.equal(p.consultor, 'LUIS JOSE SANTIAGO CAMPOS');
 });
 
 test('csvParaTexto decodifica UTF-8 e cai para latin1 em arquivo ANSI', () => {
