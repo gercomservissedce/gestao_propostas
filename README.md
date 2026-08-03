@@ -24,7 +24,11 @@ Para encerrar, feche a janela preta do terminal.
 - **Dashboard** — visão geral: valor em negociação, previsão ponderada de fechamento,
   termômetro do pipeline e as propostas esquecidas (sem contato há mais de 30 dias).
 - **Propostas** — lançar, editar, registrar contatos (follow-up), fechar ou marcar como perdida.
-  Clique em qualquer linha para abrir a proposta. O formulário inclui os custos fixos
+  Clique em qualquer linha para abrir a proposta.
+  O grid vem separado por mês de emissão, com a quantidade e o valor de cada mês
+  na faixa — clique na faixa para recolher o mês. Os filtros **Mês** e **Ano**
+  isolam um período (podem ser usados juntos ou separados).
+  O formulário inclui os custos fixos
   (DEP 01 e DEP 02, com o ROI aplicado a cada um), preenchidos manualmente.
 - **Consultores** — ranking de desempenho; clique no consultor para ver as propostas dele.
   Selecione um consultor (rádio na tabela) para **gerar uma planilha** com as propostas
