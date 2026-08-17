@@ -85,3 +85,10 @@ test('propostas tem unicidade filial+numero', () => {
   ins.run();
   assert.throws(() => ins.run(), /UNIQUE/);
 });
+
+test('openDb cria a tabela de histórico de importações', () => {
+  const db = openDb(':memory:');
+  const colunas = db.prepare('PRAGMA table_info(importacoes)').all().map(c => c.name);
+  assert.deepEqual(colunas.sort(), ['arquivo', 'atualizadas', 'backup', 'data_hora', 'id',
+    'inseridas', 'invalidas', 'origem', 'sem_mudanca']);
+});
