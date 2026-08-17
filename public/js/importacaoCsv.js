@@ -97,12 +97,16 @@ const ImportacaoCsv = {
     document.getElementById('csv-confirmar').onclick = async e => {
       e.target.disabled = true;
       try {
-        const r = await apiSend('POST', '/api/importar-csv', { arquivo: base64 });
+        const r = await apiSend('POST', '/api/importar-csv',
+          { arquivo: base64, nomeArquivo });
         aviso(`Importação: ${r.inseridas} novas, ${r.atualizadas} atualizadas, `
           + `${r.semMudanca} sem mudança`
-          + (r.invalidas ? `, ${r.invalidas} com problema` : '') + '.');
-        App.fecharModal();
+          + (r.invalidas ? `, ${r.invalidas} com problema` : '')
+          + `. Backup: ${r.backup}`);
         App.recarregarTela();
+        // Volta para Configurações em vez de só fechar: a importação já aparece
+        // no histórico, com o backup que acabou de ser gerado.
+        await App.abrirConfig();
       } catch (err) {
         aviso(err.message, true);
         e.target.disabled = false;
