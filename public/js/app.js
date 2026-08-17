@@ -30,8 +30,33 @@ const App = {
     document.getElementById('modal-fundo').classList.add('oculta');
   },
 
+  // Uma linha por importação já feita, da mais recente para a mais antiga. O
+  // nome do backup fica à vista: é por ele que se desfaz uma importação errada.
+  historicoHtml(lista) {
+    if (!lista.length) {
+      return '<div class="hist-vazio">Nenhuma importação registrada ainda.</div>';
+    }
+    return lista.map(i => `
+      <div class="hist-item">
+        <div class="hist-linha1">
+          <span class="hist-data">${esc(i.data_hora)}</span>
+          <span class="hist-origem">${esc(i.origem)}</span>
+          <span class="hist-arquivo">${esc(i.arquivo || '—')}</span>
+        </div>
+        <div class="hist-linha2">
+          <span>${i.inseridas} novas</span>
+          <span>${i.atualizadas} atualizadas</span>
+          <span>${i.sem_mudanca} sem mudança</span>
+          ${i.invalidas ? `<span class="hist-alerta">${i.invalidas} com problema</span>` : ''}
+          ${i.backup ? `<span class="hist-backup">backup: ${esc(i.backup)}</span>` : ''}
+        </div>
+      </div>`).join('');
+  },
+
   async abrirConfig() {
     const cfg = await apiGet('/api/config');
+    // O histórico é acessório: se falhar, as configurações ainda abrem.
+    const historico = await apiGet('/api/importacoes').catch(() => []);
     const caixa = document.getElementById('modal-caixa');
     caixa.innerHTML = `
       <div class="modal-titulo">
@@ -50,6 +75,13 @@ const App = {
         <button class="btn" id="cfg-importar" title="Relê a planilha do Modelo e adiciona apenas propostas novas">Reimportar planilha</button>
         <button class="btn" id="cfg-csv" title="Importa o CSV exportado do ERP: insere as propostas novas e corrige os valores das existentes">Importar CSV do ERP</button>
         <input type="file" id="cfg-csv-arquivo" accept=".csv" class="oculta">
+      </div>
+      <div class="hist-secao">
+        <div class="hist-titulo">
+          <span>Últimas importações</span>
+          <button class="btn" id="cfg-backups" title="Abre a pasta onde ficam as cópias de segurança geradas antes de cada importação">Abrir pasta dos backups</button>
+        </div>
+        <div class="hist-lista">${this.historicoHtml(historico)}</div>
       </div>
     `;
     this.abrirModal();
@@ -82,6 +114,12 @@ const App = {
       document.getElementById('cfg-csv-arquivo').click();
     };
     document.getElementById('cfg-csv-arquivo').onchange = e => ImportacaoCsv.escolher(e.target);
+    document.getElementById('cfg-backups').onclick = async () => {
+      try {
+        const { pasta } = await apiSend('POST', '/api/abrir-pasta-backups');
+        aviso(`Pasta dos backups: ${pasta}`);
+      } catch (e) { aviso(e.message, true); }
+    };
   },
 };
 

@@ -16,6 +16,7 @@ Para encerrar, feche a janela preta do terminal.
 ## Onde ficam os dados
 
 - Banco de dados: `dados/propostas.db` (backup = copiar esse arquivo; a pasta já está no Google Drive)
+- Backups automáticos das importações: `dados/backups/` (os 20 mais recentes)
 - PDFs gerados: `relatorios/`
 - Planilha de origem: `Modelo/RELAÇÃO DAS PROPOSTAS CONDOMINIOS.xlsx`
 
@@ -40,8 +41,9 @@ Para encerrar, feche a janela preta do terminal.
   e clique em "Gerar PDF". O arquivo fica em `relatorios/`.
 - **🌙/☀ Tema** — alterna entre claro e escuro; a preferência fica salva no navegador.
 - **⚙ Configurações** — probabilidades do termômetro (quente/morno/frio), prazo do alerta
-  de proposta esquecida, reimportação da planilha (adiciona só propostas novas, sem duplicar)
-  e **importação do CSV do ERP**.
+  de proposta esquecida, reimportação da planilha (adiciona só propostas novas, sem duplicar),
+  **importação do CSV do ERP** e o **histórico das importações já feitas**, com o backup
+  gerado em cada uma.
 
 Ao marcar uma proposta como **Fechada**, a data de fechamento e a etapa são preenchidas
 automaticamente (a data pode ser ajustada antes de salvar). Reabrir a proposta limpa as duas.
@@ -61,6 +63,24 @@ Descrição e observação só são sobrescritas quando o CSV traz texto — cam
 não apaga o que você escreveu.
 
 Pode importar o mesmo arquivo duas vezes sem medo: na segunda vez nada muda.
+
+### Backup automático e histórico
+
+Antes de gravar qualquer importação — o CSV do ERP ou a planilha devolvida pelo
+consultor — o sistema salva sozinho uma cópia do banco em `dados/backups/`, com data
+e hora no nome (`backup-2026-08-17-154130-csv.db`). Se o backup não puder ser gravado,
+a importação não acontece. Ficam guardados os **20 mais recentes**; os mais antigos são
+apagados automaticamente.
+
+Em **⚙ Configurações → Últimas importações** fica o registro do que já foi importado:
+data e hora, arquivo usado, quantas propostas entraram, quantas foram atualizadas e qual
+backup corresponde àquela importação. O botão **Abrir pasta dos backups** abre a pasta
+no Explorer.
+
+Para desfazer uma importação: feche o sistema, vá em `dados/`, renomeie o
+`propostas.db` atual (por segurança) e copie no lugar dele o backup daquela importação,
+com o nome `propostas.db`. Apague também os arquivos `propostas.db-wal` e
+`propostas.db-shm`, se existirem. Depois é só abrir o sistema de novo.
 
 ## Requisitos
 

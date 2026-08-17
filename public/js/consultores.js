@@ -180,7 +180,8 @@ const Consultores = {
           leitor.onerror = reject;
           leitor.readAsDataURL(arquivo);
         });
-        const resumo = await apiSend('POST', '/api/consultores/importar-atualizacoes', { arquivo: base64 });
+        const resumo = await apiSend('POST', '/api/consultores/importar-atualizacoes',
+          { arquivo: base64, nomeArquivo: arquivo.name });
         aviso(`Atualizadas: ${resumo.atualizadas} · Contatos adicionados: ${resumo.contatosAdicionados}` +
           (resumo.naoEncontradas ? ` · Não encontradas: ${resumo.naoEncontradas}` : ''));
         App.recarregarTela();

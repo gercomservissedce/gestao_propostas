@@ -58,6 +58,17 @@ CREATE TABLE IF NOT EXISTS config (
   chave TEXT PRIMARY KEY,
   valor TEXT NOT NULL
 );
+CREATE TABLE IF NOT EXISTS importacoes (
+  id INTEGER PRIMARY KEY,
+  data_hora TEXT NOT NULL,
+  origem TEXT NOT NULL,
+  arquivo TEXT,
+  inseridas INTEGER NOT NULL DEFAULT 0,
+  atualizadas INTEGER NOT NULL DEFAULT 0,
+  sem_mudanca INTEGER NOT NULL DEFAULT 0,
+  invalidas INTEGER NOT NULL DEFAULT 0,
+  backup TEXT
+);
 `;
 
 const CONFIG_PADRAO = {
