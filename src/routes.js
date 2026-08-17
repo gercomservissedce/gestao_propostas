@@ -1,6 +1,9 @@
 const express = require('express');
 const path = require('node:path');
+const fs = require('node:fs');
 const { importarPlanilha } = require('./importer');
+const { fazerBackup } = require('./backup');
+const { registrarImportacao, listarImportacoes } = require('./historicoImportacoes');
 const { getConfig, dashboardStats, consultorStats } = require('./stats');
 const { normalizar, sincronizarFechamento } = require('./parse');
 const { atualizarProposta, CAMPOS_PROPOSTA } = require('./propostaUpdate');
@@ -13,9 +16,20 @@ function hojeLocalIso() {
 }
 
 const CAMINHO_PLANILHA = path.join(__dirname, '..', 'Modelo', 'RELAÇÃO DAS PROPOSTAS CONDOMINIOS.xlsx');
+const PASTA_BACKUPS = path.join(__dirname, '..', 'dados', 'backups');
 
-function criarRotas(db) {
+// App local: abrir a pasta no Explorer é o caminho mais curto entre o histórico
+// e o arquivo de backup. detached porque o explorer.exe continua de pé depois
+// de abrir a janela e costuma sair com código 1 mesmo tendo dado certo.
+function abrirNoExplorer(pasta) {
+  const { spawn } = require('node:child_process');
+  spawn('explorer.exe', [pasta], { detached: true, stdio: 'ignore' }).unref();
+}
+
+function criarRotas(db, opcoes = {}) {
   const r = express.Router();
+  const pastaBackups = opcoes.pastaBackups || PASTA_BACKUPS;
+  const abrirPasta = opcoes.abrirPasta || abrirNoExplorer;
 
   function filtrosDaQuery(q) {
     return {
@@ -163,7 +177,13 @@ function criarRotas(db) {
     if (!req.body.arquivo) return res.status(400).json({ erro: 'Nenhum arquivo enviado' });
     try {
       const buffer = Buffer.from(req.body.arquivo, 'base64');
-      res.json(importarAtualizacoesConsultor(db, buffer, hojeLocalIso()));
+      const backup = fazerBackup(db, pastaBackups, 'consultor');
+      const resumo = importarAtualizacoesConsultor(db, buffer, hojeLocalIso());
+      registrarImportacao(db, {
+        origem: 'Planilha do consultor', arquivo: req.body.nomeArquivo, backup,
+        atualizadas: resumo.atualizadas, invalidas: resumo.naoEncontradas,
+      });
+      res.json({ ...resumo, backup });
     } catch (e) {
       res.status(400).json({ erro: `Falha ao importar planilha: ${e.message}` });
     }
@@ -206,9 +226,30 @@ function criarRotas(db) {
 
   r.post('/importar-csv', (req, res) => {
     try {
-      res.json(aplicarImportacaoCsv(db, textoCsvDoCorpo(req.body)));
+      const texto = textoCsvDoCorpo(req.body);
+      // Planeja antes do backup: arquivo que nem é do ERP estoura aqui e não
+      // deixa backup nem linha no histórico para o usuário decifrar depois.
+      planejarImportacaoCsv(db, texto);
+      const backup = fazerBackup(db, pastaBackups, 'csv');
+      const resumo = aplicarImportacaoCsv(db, texto);
+      registrarImportacao(db, {
+        origem: 'CSV do ERP', arquivo: req.body.nomeArquivo, backup, ...resumo,
+      });
+      res.json({ ...resumo, backup });
     } catch (e) {
       res.status(400).json({ erro: e.message });
+    }
+  });
+
+  r.get('/importacoes', (req, res) => res.json(listarImportacoes(db)));
+
+  r.post('/abrir-pasta-backups', (req, res) => {
+    try {
+      fs.mkdirSync(pastaBackups, { recursive: true }); // pasta só nasce na 1ª importação
+      abrirPasta(pastaBackups);
+      res.json({ pasta: pastaBackups });
+    } catch (e) {
+      res.status(500).json({ erro: `Não foi possível abrir a pasta: ${e.message}` });
     }
   });
 

@@ -5,7 +5,7 @@ const path = require('node:path');
 // hoje), então 20 custa uns 3 MB e cobre semanas de importações.
 const MAX_BACKUPS = 20;
 
-const PADRAO_NOME = /^backup-\d{4}-\d{2}-\d{2}-\d{6}-[a-z]+\.db$/;
+const PADRAO_NOME = /^backup-\d{4}-\d{2}-\d{2}-\d{6}-[a-z]+(-\d+)?\.db$/;
 
 function carimbo(agora) {
   const d = n => String(n).padStart(2, '0');
@@ -25,10 +25,20 @@ function limpar(pasta) {
 // Cópia de segurança do banco antes de uma importação. Usa VACUUM INTO em vez
 // de copiar o arquivo: é uma cópia consistente num comando só, sem o risco de
 // deixar o -wal para trás e gravar um backup pela metade.
+// VACUUM INTO recusa arquivo já existente, e duas importações no mesmo segundo
+// gerariam o mesmo nome: nesse caso vale o sufixo -2, -3...
+function nomeLivre(pasta, base) {
+  if (!fs.existsSync(path.join(pasta, `${base}.db`))) return `${base}.db`;
+  let n = 2;
+  while (fs.existsSync(path.join(pasta, `${base}-${n}.db`))) n++;
+  return `${base}-${n}.db`;
+}
+
 function fazerBackup(db, pasta, origem, agora = new Date()) {
-  const nome = `backup-${carimbo(agora)}-${origem}.db`;
+  let nome;
   try {
     fs.mkdirSync(pasta, { recursive: true });
+    nome = nomeLivre(pasta, `backup-${carimbo(agora)}-${origem}`);
     db.prepare('VACUUM INTO ?').run(path.join(pasta, nome));
     limpar(pasta);
   } catch (e) {

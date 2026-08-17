@@ -1,20 +1,29 @@
 const { test, after } = require('node:test');
 const assert = require('node:assert');
+const fs = require('node:fs');
+const os = require('node:os');
+const path = require('node:path');
 const express = require('express');
 const { openDb } = require('../src/db');
 const { criarRotas } = require('../src/routes');
 const XLSX = require('xlsx');
 const { COLUNAS_PROPOSTAS } = require('../src/consultorPlanilha');
 
-function subirApp() {
+function subirApp(opcoes = {}) {
   const db = openDb(':memory:');
   db.prepare("INSERT INTO filiais (codigo, tipo, estado) VALUES ('1001','MATRIZ','CEARÁ')").run();
+  // Pasta própria por teste: backup de teste nunca escreve na pasta do projeto.
+  const pastaBackups = fs.mkdtempSync(path.join(os.tmpdir(), 'gp-rotas-'));
   const app = express();
   app.use(express.json());
-  app.use('/api', criarRotas(db));
+  app.use('/api', criarRotas(db, { pastaBackups, ...opcoes }));
   const server = app.listen(0);
   const base = `http://localhost:${server.address().port}`;
-  return { db, server, base };
+  return { db, server, base, pastaBackups };
+}
+
+function backupsEm(pasta) {
+  return fs.readdirSync(pasta).filter(n => n.startsWith('backup-'));
 }
 
 test('GET /clientes lista distinta e ordenada; filtro ?cliente= é exato', async () => {
@@ -284,4 +293,138 @@ test('POST /importar-csv recusa arquivo que não é do ERP e corpo sem arquivo',
   const vazio = await enviar({});
   assert.equal(vazio.status, 400);
   assert.match((await vazio.json()).erro, /arquivo/i);
+});
+
+test('POST /importar-csv faz backup antes de gravar e registra no histórico', async () => {
+  const { db, server, base, pastaBackups } = subirApp();
+  after(() => server.close());
+
+  const resp = await fetch(`${base}/api/importar-csv`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ arquivo: csvBase64(LINHA_CSV), nomeArquivo: 'PROPOSTAS JULHO.csv' }),
+  });
+  assert.equal(resp.status, 200);
+  const resumo = await resp.json();
+  assert.equal(resumo.inseridas, 1);
+
+  const backups = backupsEm(pastaBackups);
+  assert.equal(backups.length, 1, 'a importação deve deixar um backup');
+  assert.equal(resumo.backup, backups[0], 'a resposta informa qual backup foi gerado');
+
+  const historico = await (await fetch(`${base}/api/importacoes`)).json();
+  assert.equal(historico.length, 1);
+  assert.equal(historico[0].origem, 'CSV do ERP');
+  assert.equal(historico[0].arquivo, 'PROPOSTAS JULHO.csv');
+  assert.equal(historico[0].inseridas, 1);
+  assert.equal(historico[0].backup, backups[0]);
+  assert.equal(db.prepare('SELECT COUNT(*) n FROM propostas').get().n, 1);
+});
+
+test('o backup guarda o banco como estava ANTES da importação', async () => {
+  const { server, base, pastaBackups } = subirApp();
+  after(() => server.close());
+
+  await fetch(`${base}/api/importar-csv`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ arquivo: csvBase64(LINHA_CSV), nomeArquivo: 'x.csv' }),
+  });
+
+  const Database = require('better-sqlite3');
+  const copia = new Database(path.join(pastaBackups, backupsEm(pastaBackups)[0]), { readonly: true });
+  assert.equal(copia.prepare('SELECT COUNT(*) n FROM propostas').get().n, 0);
+  copia.close();
+});
+
+test('arquivo que não é do ERP não gera backup nem entra no histórico', async () => {
+  const { server, base, pastaBackups } = subirApp();
+  after(() => server.close());
+
+  const resp = await fetch(`${base}/api/importar-csv`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ arquivo: Buffer.from('A,B\n1,2\n').toString('base64'), nomeArquivo: 'errado.csv' }),
+  });
+  assert.equal(resp.status, 400);
+
+  assert.deepEqual(backupsEm(pastaBackups), []);
+  assert.deepEqual(await (await fetch(`${base}/api/importacoes`)).json(), []);
+});
+
+test('a prévia não faz backup nem registra nada', async () => {
+  const { server, base, pastaBackups } = subirApp();
+  after(() => server.close());
+
+  await fetch(`${base}/api/importar-csv/previa`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ arquivo: csvBase64(LINHA_CSV) }),
+  });
+
+  assert.deepEqual(backupsEm(pastaBackups), []);
+  assert.deepEqual(await (await fetch(`${base}/api/importacoes`)).json(), []);
+});
+
+test('importar a planilha do consultor também faz backup e entra no histórico', async () => {
+  const { db, server, base, pastaBackups } = subirApp();
+  after(() => server.close());
+
+  const consultorId = db.prepare(
+    "INSERT INTO consultores (nome, tipo) VALUES ('CONSULTOR BACKUP', 'FRANQUEADO')"
+  ).run().lastInsertRowid;
+  const criar = await fetch(`${base}/api/propostas`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({
+      filial_id: 1, numero: '77', data_emissao: '2026-07-01', cliente: 'COND BKP', consultor_id: consultorId,
+    }),
+  });
+  const { id } = await criar.json();
+
+  const wb = XLSX.utils.book_new();
+  XLSX.utils.book_append_sheet(wb, XLSX.utils.aoa_to_sheet([
+    COLUNAS_PROPOSTAS,
+    [id, '77', 'COND BKP', '', 0, 'FECHADA', 'FECHADO', 'QUENTE', '', '', ''],
+  ]), 'PROPOSTAS');
+  const arquivo = XLSX.write(wb, { type: 'buffer', bookType: 'xlsx' }).toString('base64');
+
+  await fetch(`${base}/api/consultores/importar-atualizacoes`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ arquivo, nomeArquivo: 'CONSULTOR BACKUP-propostas.xlsx' }),
+  });
+
+  assert.equal(backupsEm(pastaBackups).length, 1);
+  const [reg] = await (await fetch(`${base}/api/importacoes`)).json();
+  assert.equal(reg.origem, 'Planilha do consultor');
+  assert.equal(reg.arquivo, 'CONSULTOR BACKUP-propostas.xlsx');
+  assert.equal(reg.atualizadas, 1);
+});
+
+test('GET /importacoes devolve da mais recente para a mais antiga', async () => {
+  const { server, base } = subirApp();
+  after(() => server.close());
+
+  const importar = nomeArquivo => fetch(`${base}/api/importar-csv`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ arquivo: csvBase64(LINHA_CSV), nomeArquivo }),
+  });
+  await importar('primeira.csv');
+  await importar('segunda.csv');
+
+  const historico = await (await fetch(`${base}/api/importacoes`)).json();
+  assert.deepEqual(historico.map(r => r.arquivo), ['segunda.csv', 'primeira.csv']);
+});
+
+test('POST /abrir-pasta-backups abre a pasta e devolve o caminho', async () => {
+  const abertas = [];
+  const { server, base, pastaBackups } = subirApp({ abrirPasta: p => abertas.push(p) });
+  after(() => server.close());
+
+  const resp = await fetch(`${base}/api/abrir-pasta-backups`, { method: 'POST' });
+  assert.equal(resp.status, 200);
+  assert.equal((await resp.json()).pasta, pastaBackups);
+  assert.deepEqual(abertas, [pastaBackups]);
 });

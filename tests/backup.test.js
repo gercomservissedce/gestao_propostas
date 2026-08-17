@@ -95,3 +95,16 @@ test('fazerBackup avisa em português quando não consegue gravar', () => {
     /backup/i
   );
 });
+
+test('dois backups no mesmo segundo não colidem', () => {
+  const pasta = pastaTemp();
+  const db = bancoComProposta();
+  const instante = new Date(2026, 7, 17, 15, 41, 30);
+
+  const primeiro = fazerBackup(db, pasta, 'csv', instante);
+  const segundo = fazerBackup(db, pasta, 'csv', instante);
+
+  assert.notEqual(primeiro, segundo);
+  assert.ok(fs.existsSync(path.join(pasta, primeiro)), 'o primeiro backup continua lá');
+  assert.ok(fs.existsSync(path.join(pasta, segundo)));
+});
