@@ -428,3 +428,30 @@ test('POST /abrir-pasta-backups abre a pasta e devolve o caminho', async () => {
   assert.equal((await resp.json()).pasta, pastaBackups);
   assert.deepEqual(abertas, [pastaBackups]);
 });
+
+test('PUT /consultores/:id troca o tipo e recusa tipo inválido', async () => {
+  const { db, server, base } = subirApp();
+  after(() => server.close());
+
+  const id = db.prepare(
+    "INSERT INTO consultores (nome, tipo) VALUES ('CONSULTOR TIPO', 'FRANQUEADO')"
+  ).run().lastInsertRowid;
+
+  const trocar = (consultorId, corpo) => fetch(`${base}/api/consultores/${consultorId}`, {
+    method: 'PUT',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(corpo),
+  });
+
+  const ok = await trocar(id, { tipo: 'CONSULTOR CLT' });
+  assert.equal(ok.status, 200);
+  assert.equal(db.prepare('SELECT tipo FROM consultores WHERE id = ?').get(id).tipo, 'CONSULTOR CLT');
+
+  const invalido = await trocar(id, { tipo: 'ESTAGIARIO' });
+  assert.equal(invalido.status, 400);
+  // tipo inválido não pode ter alterado o que já estava gravado
+  assert.equal(db.prepare('SELECT tipo FROM consultores WHERE id = ?').get(id).tipo, 'CONSULTOR CLT');
+
+  const semConsultor = await trocar(999999, { tipo: 'FRANQUEADO' });
+  assert.equal(semConsultor.status, 404);
+});

@@ -129,6 +129,13 @@ const Consultores = {
             ${metrica(c, 'fechadas', 'Fechadas', c.fechadas, '--fechada')}
             ${metrica(c, 'valorFechado', 'Valor fechado', fmtMoeda(c.valorFechado), '--fechada')}
           </div>
+          <div class="campo rep-tipo">
+            <label for="cons-tipo-${c.id}">Tipo</label>
+            <select id="cons-tipo-${c.id}" data-tipo-consultor="${c.id}">
+              <option value="FRANQUEADO" ${c.tipo === 'FRANQUEADO' ? 'selected' : ''}>Franqueado</option>
+              <option value="CONSULTOR CLT" ${c.tipo !== 'FRANQUEADO' ? 'selected' : ''}>CLT</option>
+            </select>
+          </div>
           <div class="rep-acoes">
             <button class="btn" data-ver="${c.id}">📋 Ver propostas</button>
             <button class="btn" data-planilha="${c.id}">📊 Gerar planilha</button>
@@ -161,6 +168,21 @@ const Consultores = {
         App.trocarTela('propostas');
       };
     });
+    // Trocar o tipo recarrega: os cartões de grupo (Franqueados / CLT) no topo
+    // são somados pelo tipo, então mudar um consultor muda os dois totais.
+    tela.querySelectorAll('[data-tipo-consultor]').forEach(sel => {
+      sel.onchange = async () => {
+        try {
+          await apiSend('PUT', `/api/consultores/${sel.dataset.tipoConsultor}`, { tipo: sel.value });
+          await this.carregar();
+          aviso('Tipo do consultor atualizado');
+        } catch (err) {
+          aviso(err.message, true);
+          this.render(); // volta o select para o tipo que está gravado
+        }
+      };
+    });
+
     tela.querySelectorAll('[data-planilha]').forEach(btn => {
       btn.onclick = () => {
         window.location.href = `/api/consultores/${btn.dataset.planilha}/exportar`;

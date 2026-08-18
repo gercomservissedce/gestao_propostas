@@ -71,6 +71,11 @@ CREATE TABLE IF NOT EXISTS importacoes (
 );
 `;
 
+// Os dois únicos tipos válidos de consultor. A tela agrupa e filtra por estes
+// valores exatos, então qualquer variação ('CLT' solto, por exemplo) sumia dos
+// cartões de grupo e do filtro sem dar erro nenhum.
+const TIPOS_CONSULTOR = ['FRANQUEADO', 'CONSULTOR CLT'];
+
 const CONFIG_PADRAO = {
   prob_quente: '70',
   prob_morno: '40',
@@ -97,6 +102,9 @@ function migrar(db) {
   for (const [coluna, tipo] of Object.entries(MIGRACOES_PROPOSTAS)) {
     if (!existentes.has(coluna)) db.exec(`ALTER TABLE propostas ADD COLUMN ${coluna} ${tipo}`);
   }
+  // Bancos antigos (e a planilha original) trouxeram 'CLT' onde a tela espera
+  // 'CONSULTOR CLT'.
+  db.prepare("UPDATE consultores SET tipo = 'CONSULTOR CLT' WHERE tipo = 'CLT'").run();
 }
 
 function openDb(caminho) {
@@ -110,4 +118,4 @@ function openDb(caminho) {
   return db;
 }
 
-module.exports = { openDb, SCHEMA_SQL };
+module.exports = { openDb, SCHEMA_SQL, TIPOS_CONSULTOR };

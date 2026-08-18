@@ -92,3 +92,24 @@ test('openDb cria a tabela de histórico de importações', () => {
   assert.deepEqual(colunas.sort(), ['arquivo', 'atualizadas', 'backup', 'data_hora', 'id',
     'inseridas', 'invalidas', 'origem', 'sem_mudanca']);
 });
+
+test('openDb padroniza o tipo CLT antigo para CONSULTOR CLT', () => {
+  const fs = require('node:fs');
+  const os = require('node:os');
+  const path = require('node:path');
+  const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'gp-tipo-'));
+  const arquivo = path.join(dir, 'tipos.db');
+  let db = openDb(arquivo);
+  db.prepare("INSERT INTO consultores (nome, tipo) VALUES ('VELHO CLT', 'CLT')").run();
+  db.prepare("INSERT INTO consultores (nome, tipo) VALUES ('FRANQUEADO OK', 'FRANQUEADO')").run();
+  db.close();
+
+  db = openDb(arquivo);
+  const tipos = Object.fromEntries(
+    db.prepare('SELECT nome, tipo FROM consultores').all().map(c => [c.nome, c.tipo])
+  );
+  assert.equal(tipos['VELHO CLT'], 'CONSULTOR CLT');
+  assert.equal(tipos['FRANQUEADO OK'], 'FRANQUEADO');
+  db.close();
+  fs.rmSync(dir, { recursive: true, force: true });
+});

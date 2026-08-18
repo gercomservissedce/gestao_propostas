@@ -4,6 +4,7 @@ const fs = require('node:fs');
 const { importarPlanilha } = require('./importer');
 const { fazerBackup } = require('./backup');
 const { registrarImportacao, listarImportacoes } = require('./historicoImportacoes');
+const { TIPOS_CONSULTOR } = require('./db');
 const { getConfig, dashboardStats, consultorStats } = require('./stats');
 const { normalizar, sincronizarFechamento } = require('./parse');
 const { atualizarProposta, CAMPOS_PROPOSTA } = require('./propostaUpdate');
@@ -161,6 +162,16 @@ function criarRotas(db, opcoes = {}) {
 
   r.get('/consultores/stats', (req, res) => {
     res.json(consultorStats(db, filtrosDaQuery(req.query)));
+  });
+
+  r.put('/consultores/:id', (req, res) => {
+    const { tipo } = req.body;
+    if (!TIPOS_CONSULTOR.includes(tipo)) {
+      return res.status(400).json({ erro: `Tipo inválido: use ${TIPOS_CONSULTOR.join(' ou ')}` });
+    }
+    const info = db.prepare('UPDATE consultores SET tipo = ? WHERE id = ?').run(tipo, req.params.id);
+    if (!info.changes) return res.status(404).json({ erro: 'Consultor não encontrado' });
+    res.json({ ok: true });
   });
 
   r.get('/consultores/:id/exportar', (req, res) => {
