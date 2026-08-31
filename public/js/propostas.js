@@ -10,6 +10,10 @@ const CAMPOS_CUSTO = [
   ['custo_dep01', 'DEP 01 (R$)'], ['roi_dep01', 'ROI DEP 01'],
   ['custo_dep02', 'DEP 02 (R$)'], ['roi_dep02', 'ROI DEP 02'],
 ];
+const MOTIVOS_PERDA = [
+  'PREÇO', 'PRAZO', 'CONCORRÊNCIA', 'CLIENTE DESISTIU',
+  'SEM RETORNO DO CLIENTE', 'ORÇAMENTO INTERNO', 'OUTRO',
+];
 
 const Propostas = {
   filtros: { busca: '', cliente: '', filial_id: '', consultor_id: '', status: 'ATIVA', etapa: '', termometro: '', origem: '', mes: '', ano: '' },
@@ -338,6 +342,10 @@ const Propostas = {
         if (!dados.numero || !dados.cliente || !dados.data_emissao) {
           return aviso('Preencha nº da proposta, data e cliente.', true);
         }
+        if (!nova && dados.status !== p.status) {
+          if (dados.status === 'PERDIDA') return this.abrirConfirmarPerda(p, dados);
+          if (dados.status === 'FECHADA') return this.abrirConfirmarFechamento(p, dados);
+        }
         if (nova) await apiSend('POST', '/api/propostas', dados);
         else await apiSend('PUT', `/api/propostas/${p.id}`, dados);
         aviso(nova ? 'Proposta criada.' : 'Proposta salva.');
@@ -348,21 +356,9 @@ const Propostas = {
 
     if (!nova) {
       const btnFecharNeg = document.getElementById('f-fechar-negocio');
-      if (btnFecharNeg) btnFecharNeg.onclick = async () => {
-        try {
-          await apiSend('PUT', `/api/propostas/${p.id}`, { status: 'FECHADA', etapa: 'FECHADO', data_fechamento: hojeIso() });
-          aviso('Proposta marcada como fechada. Parabéns!');
-          App.fecharModal(); App.recarregarTela();
-        } catch (e) { aviso(e.message, true); }
-      };
+      if (btnFecharNeg) btnFecharNeg.onclick = () => this.abrirConfirmarFechamento(p, {});
       const btnPerder = document.getElementById('f-perder');
-      if (btnPerder) btnPerder.onclick = async () => {
-        try {
-          await apiSend('PUT', `/api/propostas/${p.id}`, { status: 'PERDIDA', etapa: 'PERDIDO' });
-          aviso('Proposta marcada como perdida.');
-          App.fecharModal(); App.recarregarTela();
-        } catch (e) { aviso(e.message, true); }
-      };
+      if (btnPerder) btnPerder.onclick = () => this.abrirConfirmarPerda(p, {});
       document.getElementById('f-excluir').onclick = async () => {
         if (!confirm(`Excluir definitivamente a proposta ${p.numero} — ${p.cliente}?`)) return;
         try {
@@ -386,5 +382,107 @@ const Propostas = {
         } catch (e) { aviso(e.message, true); }
       };
     }
+  },
+
+  abrirConfirmarPerda(p, extra) {
+    const caixa = document.getElementById('modal-caixa');
+    caixa.innerHTML = `
+      <div class="modal-titulo">
+        <h2>Confirmar perda — ${esc(p.numero)} · ${esc(p.cliente)}</h2>
+        <button class="btn" id="cf-fechar-modal">✕</button>
+      </div>
+      <div class="form-grade">
+        <div class="campo col-2"><label>Motivo da perda *</label><select id="cf-motivo">
+          <option value="">Selecione</option>
+          ${MOTIVOS_PERDA.map(m => `<option value="${esc(m)}">${esc(m)}</option>`).join('')}
+        </select></div>
+        <div class="campo col-2" id="cf-motivo-outro-wrap" hidden>
+          <label>Descreva o motivo *</label><input id="cf-motivo-outro">
+        </div>
+        <div class="campo col-2">
+          <label><input type="checkbox" id="cf-concorrente-check"> Perdida para outra empresa</label>
+        </div>
+        <div class="campo col-2" id="cf-concorrente-wrap" hidden>
+          <label>Nome do concorrente *</label><input id="cf-concorrente-nome">
+        </div>
+      </div>
+      <div class="acoes-modal">
+        <button class="btn btn-primario" id="cf-confirmar">Confirmar perda</button>
+        <button class="btn" id="cf-cancelar">Cancelar</button>
+      </div>
+    `;
+    App.abrirModal();
+
+    const motivoSel = document.getElementById('cf-motivo');
+    const outroWrap = document.getElementById('cf-motivo-outro-wrap');
+    motivoSel.onchange = () => { outroWrap.hidden = motivoSel.value !== 'OUTRO'; };
+
+    const concCheck = document.getElementById('cf-concorrente-check');
+    const concWrap = document.getElementById('cf-concorrente-wrap');
+    concCheck.onchange = () => { concWrap.hidden = !concCheck.checked; };
+
+    const voltar = () => this.abrirForm(p);
+    document.getElementById('cf-fechar-modal').onclick = voltar;
+    document.getElementById('cf-cancelar').onclick = voltar;
+
+    document.getElementById('cf-confirmar').onclick = async () => {
+      const motivo = motivoSel.value;
+      if (!motivo) return aviso('Selecione o motivo da perda.', true);
+      const motivoOutro = document.getElementById('cf-motivo-outro').value.trim();
+      if (motivo === 'OUTRO' && !motivoOutro) return aviso('Descreva o motivo da perda.', true);
+      const concorrenteNome = document.getElementById('cf-concorrente-nome').value.trim();
+      if (concCheck.checked && !concorrenteNome) return aviso('Informe o nome do concorrente.', true);
+
+      try {
+        await apiSend('PUT', `/api/propostas/${p.id}`, {
+          ...extra, status: 'PERDIDA', etapa: 'PERDIDO',
+          motivo_perda: motivo === 'OUTRO' ? motivoOutro : motivo,
+          concorrente_nome: concCheck.checked ? concorrenteNome : '',
+        });
+        aviso('Proposta marcada como perdida.');
+        App.fecharModal(); App.recarregarTela();
+      } catch (e) { aviso(e.message, true); }
+    };
+  },
+
+  abrirConfirmarFechamento(p, extra) {
+    const caixa = document.getElementById('modal-caixa');
+    const valorAtual = extra.vlr_total ?? p.vlr_total ?? 0;
+    caixa.innerHTML = `
+      <div class="modal-titulo">
+        <h2>Confirmar fechamento — ${esc(p.numero)} · ${esc(p.cliente)}</h2>
+        <button class="btn" id="cf-fechar-modal">✕</button>
+      </div>
+      <div class="form-grade">
+        <div class="campo"><label>Valor fechado (R$) *</label>
+          <input type="number" step="0.01" min="0" id="cf-valor" value="${valorAtual}"></div>
+      </div>
+      <div class="acoes-modal">
+        <button class="btn btn-primario" id="cf-confirmar">Confirmar fechamento</button>
+        <button class="btn" id="cf-cancelar">Cancelar</button>
+      </div>
+    `;
+    App.abrirModal();
+
+    const voltar = () => this.abrirForm(p);
+    document.getElementById('cf-fechar-modal').onclick = voltar;
+    document.getElementById('cf-cancelar').onclick = voltar;
+
+    document.getElementById('cf-confirmar').onclick = async () => {
+      const valorInput = document.getElementById('cf-valor');
+      const valor = Number(valorInput.value);
+      if (valorInput.value === '' || Number.isNaN(valor) || valor < 0) {
+        return aviso('Informe um valor fechado válido.', true);
+      }
+      try {
+        await apiSend('PUT', `/api/propostas/${p.id}`, {
+          ...extra, status: 'FECHADA', etapa: 'FECHADO',
+          data_fechamento: extra.data_fechamento || hojeIso(),
+          vlr_total: valor,
+        });
+        aviso('Proposta marcada como fechada. Parabéns!');
+        App.fecharModal(); App.recarregarTela();
+      } catch (e) { aviso(e.message, true); }
+    };
   },
 };
