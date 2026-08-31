@@ -8,6 +8,7 @@ const CAMPOS_PROPOSTA = [
   'marcada_relatorio', 'valor_minimo_fechamento',
   'custo_dep01', 'roi_dep01', 'custo_dep02', 'roi_dep02', 'origem',
   'vlr_desconto', 'vlr_total_com_desconto',
+  'motivo_perda', 'concorrente_nome',
 ];
 
 function atualizarProposta(db, id, dados, hoje) {

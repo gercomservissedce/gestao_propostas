@@ -41,3 +41,27 @@ test('atualizarProposta grava origem', () => {
   const p = db.prepare('SELECT origem FROM propostas WHERE id = ?').get(id);
   assert.equal(p.origem, 'LEAD');
 });
+
+test('atualizarProposta grava motivo_perda e concorrente_nome', () => {
+  const { db, id } = dbComProposta();
+  const r = atualizarProposta(db, id, {
+    status: 'PERDIDA', motivo_perda: 'PREÇO', concorrente_nome: 'CONCORRENTE X',
+  }, '2026-07-10');
+  assert.equal(r.changes, 1);
+  const p = db.prepare('SELECT status, etapa, motivo_perda, concorrente_nome FROM propostas WHERE id = ?').get(id);
+  assert.equal(p.status, 'PERDIDA');
+  assert.equal(p.etapa, 'PERDIDO');
+  assert.equal(p.motivo_perda, 'PREÇO');
+  assert.equal(p.concorrente_nome, 'CONCORRENTE X');
+});
+
+test('atualizarProposta limpa motivo_perda e concorrente_nome ao reabrir', () => {
+  const { db, id } = dbComProposta();
+  atualizarProposta(db, id, {
+    status: 'PERDIDA', motivo_perda: 'PREÇO', concorrente_nome: 'CONCORRENTE X',
+  }, '2026-07-10');
+  atualizarProposta(db, id, { status: 'ATIVA' }, '2026-07-11');
+  const p = db.prepare('SELECT motivo_perda, concorrente_nome FROM propostas WHERE id = ?').get(id);
+  assert.equal(p.motivo_perda, null);
+  assert.equal(p.concorrente_nome, null);
+});
