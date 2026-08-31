@@ -191,10 +191,10 @@ test('aplicar corrige o valor e preserva todo o acompanhamento do app', () => {
   const id = db.prepare(`INSERT INTO propostas (filial_id, numero, data_emissao, cliente, status,
     etapa, termometro, proxima_data_contato, data_fechamento, custo_dep01, roi_dep01,
     marcada_relatorio, observacao, vlr_comodato, vlr_serv_adicional, vlr_mensal,
-    vlr_total, vlr_total_com_desconto, consultor_id)
+    vlr_total, vlr_total_com_desconto, consultor_id, motivo_perda, concorrente_nome)
     VALUES (1,'27178','2026-07-08','CONDOMINIO GREEN VILLAGE','PERDIDA','PERDIDO','QUENTE',
     '2026-08-10','2026-07-30', 500, 12, 1, 'ANOTACAO DO APP',
-    3383.15, 35, 3418.15, 3000, 3000, 1)`).run().lastInsertRowid;
+    3383.15, 35, 3418.15, 3000, 3000, 1, 'PREÇO', 'CONCORRENTE X')`).run().lastInsertRowid;
   db.prepare("INSERT INTO contatos (proposta_id, data, anotacao) VALUES (?, '2026-07-20', 'ligou')").run(id);
 
   const resumo = aplicarImportacaoCsv(db, csv(linha()));
@@ -212,6 +212,8 @@ test('aplicar corrige o valor e preserva todo o acompanhamento do app', () => {
   assert.equal(p.roi_dep01, 12);
   assert.equal(p.marcada_relatorio, 1);
   assert.equal(p.observacao, 'ANOTACAO DO APP');
+  assert.equal(p.motivo_perda, 'PREÇO');           // preservado
+  assert.equal(p.concorrente_nome, 'CONCORRENTE X'); // preservado
   assert.equal(db.prepare('SELECT COUNT(*) n FROM contatos WHERE proposta_id = ?').get(id).n, 1);
 });
 
