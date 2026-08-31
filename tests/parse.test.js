@@ -81,6 +81,16 @@ test('sincronizarFechamento preenche data e etapa ao fechar (regressão do dashb
   assert.equal(reaberta.motivo_perda, null);
   assert.equal(reaberta.concorrente_nome, null);
 
+  // PERDIDA virando FECHADA (negócio fechado, afinal) também limpa o motivo e
+  // o concorrente de perda: um fechamento não pode carregar motivo de perda.
+  const perdidaFechada = {
+    status: 'FECHADA', motivo_perda: 'PREÇO', concorrente_nome: 'CONCORRENTE X',
+  };
+  sincronizarFechamento(perdidaFechada, '2026-07-10');
+  assert.equal(perdidaFechada.etapa, 'FECHADO');
+  assert.equal(perdidaFechada.motivo_perda, null);
+  assert.equal(perdidaFechada.concorrente_nome, null);
+
   // Sem status no corpo, nada muda
   const soValor = { vlr_total: 100 };
   sincronizarFechamento(soValor, '2026-07-10');

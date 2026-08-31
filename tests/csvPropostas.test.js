@@ -217,6 +217,23 @@ test('aplicar corrige o valor e preserva todo o acompanhamento do app', () => {
   assert.equal(db.prepare('SELECT COUNT(*) n FROM contatos WHERE proposta_id = ?').get(id).n, 1);
 });
 
+test('aplicar não reverte vlr_total de proposta FECHADA, mas atualiza os demais valores', () => {
+  const db = bancoBase();
+  const id = db.prepare(`INSERT INTO propostas (filial_id, numero, data_emissao, cliente, status,
+    etapa, vlr_comodato, vlr_serv_adicional, vlr_mensal, vlr_total, vlr_total_com_desconto, consultor_id)
+    VALUES (1,'27178','2026-07-08','CONDOMINIO GREEN VILLAGE','FECHADA','FECHADO',
+    1000, 35, 3418.15, 6500, 6500, 1)`).run().lastInsertRowid;
+
+  // CSV do ERP traz o valor pré-negociação (8000) — não pode reverter o que a
+  // confirmação de fechamento gravou — mas comodato ainda vem do ERP normalmente.
+  const resumo = aplicarImportacaoCsv(db, csv(linha({ total: '"R$8000,00"' })));
+  assert.equal(resumo.atualizadas, 1);
+
+  const p = db.prepare('SELECT * FROM propostas WHERE id = ?').get(id);
+  assert.equal(p.vlr_total, 6500);           // preservado: confirmação de fechamento manda
+  assert.equal(p.vlr_comodato, 3383.15);     // atualizado normalmente a partir do ERP
+});
+
 test('aplicar duas vezes não muda nada na segunda (idempotente)', () => {
   const db = bancoBase();
   const primeira = aplicarImportacaoCsv(db, csv(linha(), linha({ numero: '2' })));

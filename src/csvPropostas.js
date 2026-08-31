@@ -59,7 +59,7 @@ function planejarImportacaoCsv(db, texto) {
   const buscaFilial = db.prepare('SELECT id FROM filiais WHERE codigo = ?');
   const buscaConsultor = db.prepare('SELECT id FROM consultores WHERE nome = ?');
   const buscaProposta = db.prepare(`
-    SELECT p.id, p.cliente, p.data_emissao, p.tipo_negocio, p.consultor_id,
+    SELECT p.id, p.cliente, p.data_emissao, p.tipo_negocio, p.consultor_id, p.status,
            p.descricao, p.observacao, c.nome consultor, ${Object.keys(VALORES).map(v => `p.${v}`).join(', ')}
     FROM propostas p LEFT JOIN consultores c ON c.id = p.consultor_id
     WHERE p.filial_id = ? AND p.numero = ?
@@ -137,6 +137,10 @@ function planejarImportacaoCsv(db, texto) {
     const anotar = (campo, de, para) => { mudancas.push({ campo, de, para }); dados[campo] = para; };
 
     for (const coluna of Object.keys(VALORES)) {
+      // Proposta FECHADA: vlr_total foi negociado e confirmado pelo usuário no
+      // fechamento — o ERP costuma continuar com o valor pré-negociação, então
+      // reimportar não pode reverter o que a confirmação de fechamento gravou.
+      if (coluna === 'vlr_total' && atual.status === 'FECHADA') continue;
       if (valorDiferente(atual[coluna], valores[coluna])) {
         anotar(coluna, Number(atual[coluna]) || 0, valores[coluna]);
       }

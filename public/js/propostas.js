@@ -265,6 +265,10 @@ const Propostas = {
         ${CAMPOS_CUSTO.map(([n, r]) => campoValor(n, r)).join('')}
         <div class="campo col-2"><label>Descrição</label><textarea id="f-descricao">${esc(p.descricao || '')}</textarea></div>
         <div class="campo col-2"><label>Observação</label><textarea id="f-observacao">${esc(p.observacao || '')}</textarea></div>
+        ${p.motivo_perda ? `
+        <div class="campo col-2"><label>Motivo da perda</label>
+          <div>${esc(p.motivo_perda)}${p.concorrente_nome ? ` — perdida para ${esc(p.concorrente_nome)}` : ''}</div>
+        </div>` : ''}
       </div>
 
       ${nova ? '' : `
@@ -477,7 +481,7 @@ const Propostas = {
       try {
         await apiSend('PUT', `/api/propostas/${p.id}`, {
           ...extra, status: 'FECHADA', etapa: 'FECHADO',
-          data_fechamento: extra.data_fechamento || hojeIso(),
+          data_fechamento: extra.data_fechamento,
           vlr_total: valor,
         });
         aviso('Proposta marcada como fechada. Parabéns!');

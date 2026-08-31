@@ -94,6 +94,11 @@ function sincronizarFechamento(dados, hoje) {
   if (dados.status === 'FECHADA') {
     if (!dados.data_fechamento) dados.data_fechamento = hoje;
     dados.etapa = 'FECHADO';
+    // Negócio fechado não pode carregar motivo de perda/concorrente de uma
+    // passagem anterior por PERDIDA — senão a proposta fica com os dois ao
+    // mesmo tempo, o que não faz sentido.
+    dados.motivo_perda = null;
+    dados.concorrente_nome = null;
   } else if (dados.status === 'PERDIDA') {
     dados.etapa = 'PERDIDO';
   } else if (dados.status === 'ATIVA') {
