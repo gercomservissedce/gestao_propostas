@@ -44,6 +44,8 @@ CREATE TABLE IF NOT EXISTS propostas (
   roi_dep01 REAL,
   custo_dep02 REAL,
   roi_dep02 REAL,
+  motivo_perda TEXT,
+  concorrente_nome TEXT,
   criada_em TEXT NOT NULL DEFAULT (date('now')),
   UNIQUE (filial_id, numero)
 );
@@ -93,6 +95,8 @@ const MIGRACOES_PROPOSTAS = {
   origem: 'TEXT',
   vlr_desconto: 'REAL DEFAULT 0',
   vlr_total_com_desconto: 'REAL DEFAULT 0',
+  motivo_perda: 'TEXT',
+  concorrente_nome: 'TEXT',
 };
 
 function migrar(db) {
