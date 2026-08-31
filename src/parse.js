@@ -99,6 +99,8 @@ function sincronizarFechamento(dados, hoje) {
   } else if (dados.status === 'ATIVA') {
     dados.data_fechamento = null;
     if (dados.etapa === 'FECHADO' || dados.etapa === 'PERDIDO') dados.etapa = null;
+    dados.motivo_perda = null;
+    dados.concorrente_nome = null;
   }
   return dados;
 }

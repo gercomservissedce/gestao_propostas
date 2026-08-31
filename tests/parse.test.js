@@ -70,11 +70,16 @@ test('sincronizarFechamento preenche data e etapa ao fechar (regressão do dashb
   sincronizarFechamento(perdida, '2026-07-10');
   assert.equal(perdida.etapa, 'PERDIDO');
 
-  // Reabrir limpa a data e a etapa de encerramento
-  const reaberta = { status: 'ATIVA', data_fechamento: '2026-06-01', etapa: 'FECHADO' };
+  // Reabrir limpa a data, a etapa de encerramento e o motivo/concorrente de perda
+  const reaberta = {
+    status: 'ATIVA', data_fechamento: '2026-06-01', etapa: 'FECHADO',
+    motivo_perda: 'PREÇO', concorrente_nome: 'CONCORRENTE X',
+  };
   sincronizarFechamento(reaberta, '2026-07-10');
   assert.equal(reaberta.data_fechamento, null);
   assert.equal(reaberta.etapa, null);
+  assert.equal(reaberta.motivo_perda, null);
+  assert.equal(reaberta.concorrente_nome, null);
 
   // Sem status no corpo, nada muda
   const soValor = { vlr_total: 100 };
