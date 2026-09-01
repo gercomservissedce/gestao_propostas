@@ -156,7 +156,7 @@ const Dashboard = {
     const rotuloMes = m => { const [ano, mm] = m.split('-'); return `${MESES_ABREV[Number(mm) - 1]}/${ano.slice(2)}`; };
 
     const W = 760, H = 220;
-    const margem = { topo: 12, baixo: 26, esq: 28, dir: 14 };
+    const margem = { topo: 20, baixo: 26, esq: 28, dir: 14 };
     const largura = W - margem.esq - margem.dir;
     const altura = H - margem.topo - margem.baixo;
 
@@ -174,13 +174,32 @@ const Dashboard = {
 
     const rotulosX = meses.map((m, i) => `<text x="${x(i).toFixed(1)}" y="${H - margem.baixo + 18}" class="evo-eixo-x" text-anchor="middle">${rotuloMes(m)}</text>`).join('');
 
-    const linhas = series.map(s => {
+    // Quando duas séries têm valores próximos no mesmo mês, os rótulos "acima do ponto"
+    // colidiriam — nesse caso o de baixo é jogado para abaixo do marcador.
+    const OFFSET_ACIMA = -9, OFFSET_ABAIXO = 13, LIMIAR_COLISAO = 14;
+    const dyPorMes = meses.map((_, i) => {
+      const ordenado = series.map((s, si) => ({ si, yy: y(s.dados[i]) })).sort((a, b) => a.yy - b.yy);
+      const dy = {};
+      let ultimaYY = null;
+      ordenado.forEach(({ si, yy }) => {
+        if (ultimaYY === null || yy - ultimaYY >= LIMIAR_COLISAO) {
+          dy[si] = OFFSET_ACIMA;
+          ultimaYY = yy;
+        } else {
+          dy[si] = OFFSET_ABAIXO;
+        }
+      });
+      return dy;
+    });
+
+    const linhas = series.map((s, si) => {
       const cor = corDaSerie(s.nome);
       const pontos = s.dados.map((v, i) => `${x(i).toFixed(1)},${y(v).toFixed(1)}`).join(' ');
       const marcadores = s.dados.map((v, i) => `
         <circle cx="${x(i).toFixed(1)}" cy="${y(v).toFixed(1)}" r="3.5" fill="${cor}" stroke="var(--cartao)" stroke-width="1.5">
           <title>${esc(rotuloMes(meses[i]))}: ${v} proposta(s)${series.length > 1 ? ' — ' + esc(s.nome.toLowerCase()) : ''}</title>
-        </circle>`).join('');
+        </circle>
+        <text x="${x(i).toFixed(1)}" y="${(y(v) + dyPorMes[i][si]).toFixed(1)}" class="evo-valor" text-anchor="middle" fill="${cor}">${v}</text>`).join('');
       return `<polyline points="${pontos}" fill="none" stroke="${cor}" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" />${marcadores}`;
     }).join('');
 

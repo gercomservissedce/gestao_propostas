@@ -201,6 +201,7 @@ button:disabled { opacity: .5; cursor: default; }
 .evo-svg { width: 100%; height: auto; display: block; }
 .evo-grade { stroke: var(--borda); stroke-width: 1; }
 .evo-eixo-y, .evo-eixo-x { fill: var(--tinta-3); font-size: 10.5px; font-variant-numeric: tabular-nums; }
+.evo-valor { font-size: 10.5px; font-weight: 600; font-variant-numeric: tabular-nums; }
 .evo-legenda { display: flex; gap: 18px; flex-wrap: wrap; margin-top: 6px; font-size: 12.5px; }
 .evo-legenda .item { display: flex; align-items: center; gap: 6px; color: var(--tinta-2); }
 .evo-legenda .bolinha { width: 10px; height: 10px; border-radius: 50%; display: inline-block; }
