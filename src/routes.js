@@ -36,6 +36,7 @@ function criarRotas(db, opcoes = {}) {
     return {
       filial_id: q.filial_id ? Number(q.filial_id) : null,
       consultor_id: q.consultor_id ? Number(q.consultor_id) : null,
+      tipo_consultor: q.tipo_consultor || null,
       de: q.de || null,
       ate: q.ate || null,
       termometro: q.termometro || null,

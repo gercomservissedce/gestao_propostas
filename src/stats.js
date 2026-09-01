@@ -1,3 +1,5 @@
+const { TIPOS_CONSULTOR } = require('./db');
+
 function getConfig(db) {
   const rows = db.prepare('SELECT chave, valor FROM config').all();
   const cfg = Object.fromEntries(rows.map(r => [r.chave, Number(r.valor)]));
@@ -15,6 +17,7 @@ function filtroSql(filtros = {}) {
   const params = [];
   if (filtros.filial_id) { cond.push('p.filial_id = ?'); params.push(filtros.filial_id); }
   if (filtros.consultor_id) { cond.push('p.consultor_id = ?'); params.push(filtros.consultor_id); }
+  if (filtros.tipo_consultor) { cond.push('p.consultor_id IN (SELECT id FROM consultores WHERE tipo = ?)'); params.push(filtros.tipo_consultor); }
   if (filtros.de) { cond.push('p.data_emissao >= ?'); params.push(filtros.de); }
   if (filtros.ate) { cond.push('p.data_emissao <= ?'); params.push(filtros.ate); }
   if (filtros.termometro === 'NULA') cond.push('p.termometro IS NULL');
@@ -114,7 +117,65 @@ function dashboardStats(db, filtros = {}) {
     esquecidas,
     naoClassificadas,
     config: cfg,
+    evolucaoMensal: evolucaoMensal(db, filtros),
   };
+}
+
+// Lista de meses 'YYYY-MM' entre `de` e `ate` (inclusive). Sem `de`, usa os
+// últimos 12 meses terminando em `ate` (ou hoje). As datas vêm como
+// 'YYYY-MM-DD'; parseadas por partes para não sofrer com fuso horário do
+// construtor Date com string ISO.
+function listaMeses(de, ate) {
+  const parseIso = s => { const [y, m, d] = s.split('-').map(Number); return new Date(y, m - 1, d); };
+  const fimRef = ate ? parseIso(ate) : new Date();
+  const inicioRef = de ? parseIso(de) : new Date(fimRef.getFullYear(), fimRef.getMonth() - 11, 1);
+
+  const meses = [];
+  const cursor = new Date(inicioRef.getFullYear(), inicioRef.getMonth(), 1);
+  const fimMes = new Date(fimRef.getFullYear(), fimRef.getMonth(), 1);
+  while (cursor <= fimMes) {
+    meses.push(`${cursor.getFullYear()}-${String(cursor.getMonth() + 1).padStart(2, '0')}`);
+    cursor.setMonth(cursor.getMonth() + 1);
+  }
+  return meses;
+}
+
+// Evolução mês a mês da quantidade de propostas emitidas. Com um consultor
+// selecionado no filtro, retorna a série individual dele; sem consultor,
+// agrega por tipo (FRANQUEADO / CONSULTOR CLT) para comparar as duas turmas.
+function evolucaoMensal(db, filtros = {}) {
+  const { where, params } = filtroSql(filtros);
+  const meses = listaMeses(filtros.de, filtros.ate);
+  const zeros = () => meses.map(() => 0);
+
+  if (filtros.consultor_id) {
+    const consultor = db.prepare('SELECT nome FROM consultores WHERE id = ?').get(filtros.consultor_id);
+    const linhas = db.prepare(`
+      SELECT strftime('%Y-%m', p.data_emissao) mes, COUNT(*) qtde
+      FROM propostas p WHERE 1=1 ${where}
+      GROUP BY mes
+    `).all(...params);
+    const dados = zeros();
+    for (const l of linhas) {
+      const idx = meses.indexOf(l.mes);
+      if (idx >= 0) dados[idx] = l.qtde;
+    }
+    return { meses, series: [{ nome: consultor ? consultor.nome : 'Consultor', dados }] };
+  }
+
+  const linhas = db.prepare(`
+    SELECT strftime('%Y-%m', p.data_emissao) mes, c.tipo tipo, COUNT(*) qtde
+    FROM propostas p JOIN consultores c ON c.id = p.consultor_id
+    WHERE 1=1 ${where}
+    GROUP BY mes, c.tipo
+  `).all(...params);
+  const series = TIPOS_CONSULTOR.map(tipo => ({ nome: tipo, dados: zeros() }));
+  for (const l of linhas) {
+    const serie = series.find(s => s.nome === l.tipo);
+    const idx = meses.indexOf(l.mes);
+    if (serie && idx >= 0) serie.dados[idx] = l.qtde;
+  }
+  return { meses, series };
 }
 
 function consultorStats(db, filtros = {}) {
@@ -147,4 +208,4 @@ function consultorStats(db, filtros = {}) {
   `).all(cfg.dias_alerta, ...params);
 }
 
-module.exports = { getConfig, dashboardStats, consultorStats, filtroSql };
+module.exports = { getConfig, dashboardStats, consultorStats, filtroSql, evolucaoMensal };

@@ -1,12 +1,16 @@
 const { test } = require('node:test');
 const assert = require('node:assert');
 const { openDb } = require('../src/db');
-const { getConfig, dashboardStats, consultorStats } = require('../src/stats');
+const { getConfig, dashboardStats, consultorStats, evolucaoMensal } = require('../src/stats');
 
 function hoje(diasAtras = 0) {
   const d = new Date();
   d.setDate(d.getDate() - diasAtras);
   return d.toISOString().slice(0, 10);
+}
+
+function mes(diasAtras = 0) {
+  return hoje(diasAtras).slice(0, 7);
 }
 
 function seedDb() {
@@ -80,6 +84,18 @@ test('dashboardStats aplica filtro de consultor', () => {
   assert.equal(s.totalAtivas.valor, 3000);
 });
 
+test('dashboardStats aplica filtro de tipo_consultor', () => {
+  const db = seedDb();
+  // ANA é FRANQUEADO: propostas 1 e 2 estão ATIVAS (3000)
+  const franqueados = dashboardStats(db, { tipo_consultor: 'FRANQUEADO' });
+  assert.equal(franqueados.totalAtivas.qtde, 2);
+  assert.equal(franqueados.totalAtivas.valor, 3000);
+  // BETO é CONSULTOR CLT: propostas 3 e 4 estão ATIVAS (7000)
+  const clt = dashboardStats(db, { tipo_consultor: 'CONSULTOR CLT' });
+  assert.equal(clt.totalAtivas.qtde, 2);
+  assert.equal(clt.totalAtivas.valor, 7000);
+});
+
 test('consultorStats aplica filtro de termômetro e datas', () => {
   const db = seedDb();
 
@@ -130,4 +146,51 @@ test('dashboardStats aplica filtro de consultor a geradas/fechadasTotal/perdidas
   assert.equal(s.fechadasTotal.valor, 5000);
   assert.equal(s.perdidas.qtde, 0);
   assert.equal(s.perdidas.valor, 0);
+});
+
+function seedEvolucao() {
+  const db = openDb(':memory:');
+  db.prepare("INSERT INTO filiais (codigo, tipo, estado) VALUES ('1001','MATRIZ','CEARÁ')").run();
+  db.prepare("INSERT INTO consultores (nome, tipo) VALUES ('ANA','FRANQUEADO')").run();
+  db.prepare("INSERT INTO consultores (nome, tipo) VALUES ('BETO','CONSULTOR CLT')").run();
+  db.prepare("INSERT INTO consultores (nome, tipo) VALUES ('CARLA','FRANQUEADO')").run();
+  const ins = db.prepare(`INSERT INTO propostas
+    (filial_id, numero, data_emissao, cliente, status, vlr_total, consultor_id)
+    VALUES (1, ?, ?, ?, 'ATIVA', ?, ?)`);
+  ins.run('1', hoje(0), 'CLI 1', 1000, 1);  // ANA (FRANQUEADO), mês atual
+  ins.run('2', hoje(0), 'CLI 2', 1000, 3);  // CARLA (FRANQUEADO), mês atual
+  ins.run('3', hoje(0), 'CLI 3', 1000, 2);  // BETO (CONSULTOR CLT), mês atual
+  ins.run('4', hoje(40), 'CLI 4', 1000, 1); // ANA, mês anterior
+  return db;
+}
+
+test('evolucaoMensal com consultor selecionado retorna série única do consultor', () => {
+  const db = seedEvolucao();
+  const r = evolucaoMensal(db, { consultor_id: 1 });
+  assert.equal(r.series.length, 1);
+  assert.equal(r.series[0].nome, 'ANA');
+  const idxAtual = r.meses.indexOf(mes(0));
+  const idxAnterior = r.meses.indexOf(mes(40));
+  assert.equal(r.series[0].dados[idxAtual], 1);
+  assert.equal(r.series[0].dados[idxAnterior], 1);
+});
+
+test('evolucaoMensal sem consultor selecionado agrega por tipo de consultor', () => {
+  const db = seedEvolucao();
+  const r = evolucaoMensal(db, {});
+  const franqueado = r.series.find(s => s.nome === 'FRANQUEADO');
+  const clt = r.series.find(s => s.nome === 'CONSULTOR CLT');
+  const idxAtual = r.meses.indexOf(mes(0));
+  const idxAnterior = r.meses.indexOf(mes(40));
+  assert.equal(franqueado.dados[idxAtual], 2); // ANA + CARLA no mês atual
+  assert.equal(clt.dados[idxAtual], 1); // BETO
+  assert.equal(franqueado.dados[idxAnterior], 1); // ANA no mês anterior
+  assert.equal(clt.dados[idxAnterior], 0);
+});
+
+test('evolucaoMensal usa o intervalo de/até quando informado, em vez dos últimos 12 meses', () => {
+  const db = seedEvolucao();
+  const r = evolucaoMensal(db, { de: hoje(10), ate: hoje(0) });
+  assert.ok(r.meses.includes(mes(0)));
+  assert.ok(!r.meses.includes(mes(40)));
 });

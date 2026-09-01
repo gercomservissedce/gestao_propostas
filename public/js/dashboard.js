@@ -1,5 +1,5 @@
 const Dashboard = {
-  filtros: { filial_id: '', consultor_id: '', de: '', ate: '' },
+  filtros: { filial_id: '', consultor_id: '', tipo_consultor: '', de: '', ate: '' },
 
   async carregar() {
     const tela = document.getElementById('tela-dashboard');
@@ -30,6 +30,12 @@ const Dashboard = {
           <select id="dash-consultor">
             <option value="">Todos</option>
             ${consultores.map(c => `<option value="${c.id}" ${String(c.id) === this.filtros.consultor_id ? 'selected' : ''}>${esc(c.nome)}</option>`).join('')}
+          </select></div>
+        <div class="campo"><label>Tipo</label>
+          <select id="dash-tipo-consultor">
+            <option value="">Todos</option>
+            <option value="FRANQUEADO" ${this.filtros.tipo_consultor === 'FRANQUEADO' ? 'selected' : ''}>Franqueado</option>
+            <option value="CONSULTOR CLT" ${this.filtros.tipo_consultor === 'CONSULTOR CLT' ? 'selected' : ''}>Consultor CLT</option>
           </select></div>
         <div class="campo"><label>Emitidas de</label><input type="date" id="dash-de" value="${this.filtros.de}"></div>
         <div class="campo"><label>até</label><input type="date" id="dash-ate" value="${this.filtros.ate}"></div>
@@ -96,6 +102,11 @@ const Dashboard = {
         </div>
       </div>
 
+      <div class="cartao" style="margin-bottom:16px">
+        <div class="titulo-secao">${d.evolucaoMensal.series.length > 1 ? 'Evolução mensal — propostas emitidas por tipo de consultor' : `Evolução mensal — propostas emitidas por ${esc(d.evolucaoMensal.series[0].nome)}`}</div>
+        ${this.renderEvolucao(d.evolucaoMensal)}
+      </div>
+
       <div class="grade-2">
         <div class="cartao">
           <div class="titulo-secao">Funil por etapa (ativas)</div>
@@ -110,10 +121,11 @@ const Dashboard = {
 
     document.getElementById('dash-filial').onchange = e => this.aplicar('filial_id', e.target.value);
     document.getElementById('dash-consultor').onchange = e => this.aplicar('consultor_id', e.target.value);
+    document.getElementById('dash-tipo-consultor').onchange = e => this.aplicar('tipo_consultor', e.target.value);
     document.getElementById('dash-de').onchange = e => this.aplicar('de', e.target.value);
     document.getElementById('dash-ate').onchange = e => this.aplicar('ate', e.target.value);
     document.getElementById('dash-limpar').onclick = () => {
-      this.filtros = { filial_id: '', consultor_id: '', de: '', ate: '' };
+      this.filtros = { filial_id: '', consultor_id: '', tipo_consultor: '', de: '', ate: '' };
       this.carregar();
     };
     const linkTriagem = document.getElementById('link-triagem');
@@ -130,6 +142,61 @@ const Dashboard = {
   aplicar(chave, valor) {
     this.filtros[chave] = valor;
     this.carregar();
+  },
+
+  renderEvolucao(evolucao) {
+    const { meses, series } = evolucao;
+    if (!meses.length || series.every(s => s.dados.every(v => v === 0))) {
+      return '<p>Sem propostas emitidas no período.</p>';
+    }
+
+    const CORES = { FRANQUEADO: 'var(--evo-franqueado)', 'CONSULTOR CLT': 'var(--evo-clt)' };
+    const corDaSerie = nome => CORES[nome] || 'var(--evo-unico)';
+    const MESES_ABREV = ['jan', 'fev', 'mar', 'abr', 'mai', 'jun', 'jul', 'ago', 'set', 'out', 'nov', 'dez'];
+    const rotuloMes = m => { const [ano, mm] = m.split('-'); return `${MESES_ABREV[Number(mm) - 1]}/${ano.slice(2)}`; };
+
+    const W = 760, H = 220;
+    const margem = { topo: 12, baixo: 26, esq: 28, dir: 14 };
+    const largura = W - margem.esq - margem.dir;
+    const altura = H - margem.topo - margem.baixo;
+
+    const maxValor = Math.max(1, ...series.flatMap(s => s.dados));
+    const tetoY = Math.max(5, Math.ceil(maxValor / 5) * 5);
+
+    const x = i => meses.length > 1 ? margem.esq + (i * largura) / (meses.length - 1) : margem.esq + largura / 2;
+    const y = v => margem.topo + altura - (v / tetoY) * altura;
+
+    const grades = [0, 0.25, 0.5, 0.75, 1].map(f => {
+      const yy = margem.topo + altura - f * altura;
+      return `<line x1="${margem.esq}" y1="${yy.toFixed(1)}" x2="${W - margem.dir}" y2="${yy.toFixed(1)}" class="evo-grade" />
+        <text x="${margem.esq - 6}" y="${yy.toFixed(1)}" class="evo-eixo-y" text-anchor="end" dominant-baseline="middle">${Math.round(f * tetoY)}</text>`;
+    }).join('');
+
+    const rotulosX = meses.map((m, i) => `<text x="${x(i).toFixed(1)}" y="${H - margem.baixo + 18}" class="evo-eixo-x" text-anchor="middle">${rotuloMes(m)}</text>`).join('');
+
+    const linhas = series.map(s => {
+      const cor = corDaSerie(s.nome);
+      const pontos = s.dados.map((v, i) => `${x(i).toFixed(1)},${y(v).toFixed(1)}`).join(' ');
+      const marcadores = s.dados.map((v, i) => `
+        <circle cx="${x(i).toFixed(1)}" cy="${y(v).toFixed(1)}" r="3.5" fill="${cor}" stroke="var(--cartao)" stroke-width="1.5">
+          <title>${esc(rotuloMes(meses[i]))}: ${v} proposta(s)${series.length > 1 ? ' — ' + esc(s.nome.toLowerCase()) : ''}</title>
+        </circle>`).join('');
+      return `<polyline points="${pontos}" fill="none" stroke="${cor}" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" />${marcadores}`;
+    }).join('');
+
+    const legenda = series.length > 1 ? `
+      <div class="evo-legenda">
+        ${series.map(s => `<span class="item"><span class="bolinha" style="background:${corDaSerie(s.nome)}"></span>${esc(s.nome.toLowerCase())}</span>`).join('')}
+      </div>` : '';
+
+    return `
+      <svg viewBox="0 0 ${W} ${H}" class="evo-svg" role="img" aria-label="Evolução mensal da quantidade de propostas emitidas">
+        ${grades}
+        ${rotulosX}
+        ${linhas}
+      </svg>
+      ${legenda}
+    `;
   },
 
   renderFunil(funil) {

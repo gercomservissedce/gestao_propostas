@@ -26,6 +26,13 @@
   --sombra: 0 1px 3px rgba(28, 39, 51, .08);
   --raio: 8px;
   --scheme: light;
+  /* Paleta categórica do gráfico de evolução mensal, validada com
+     scripts/validate_palette.js (dataviz skill) contra a superfície do
+     cartão (#ffffff claro / #20242a escuro): franqueado x CLT passa CVD e
+     contraste sem ressalvas. --evo-unico é a linha de um único consultor. */
+  --evo-franqueado: #2a78d6;
+  --evo-clt: #008300;
+  --evo-unico: #2a78d6;
 }
 
 /* ===== Tokens (tema escuro) =====
@@ -59,6 +66,9 @@
   --badge-nc-fundo: transparent;
   --sombra: 0 1px 3px rgba(0, 0, 0, .4);
   --scheme: dark;
+  --evo-franqueado: #3987e5;
+  --evo-clt: #008300;
+  --evo-unico: #3987e5;
 }
 
 * { box-sizing: border-box; margin: 0; padding: 0; }
@@ -186,6 +196,14 @@ button:disabled { opacity: .5; cursor: default; }
   border-radius: 6px; font-size: 13px; display: inline-block;
 }
 .regua-previsao b { font-variant-numeric: tabular-nums; }
+
+/* ===== Evolução mensal (dashboard) ===== */
+.evo-svg { width: 100%; height: auto; display: block; }
+.evo-grade { stroke: var(--borda); stroke-width: 1; }
+.evo-eixo-y, .evo-eixo-x { fill: var(--tinta-3); font-size: 10.5px; font-variant-numeric: tabular-nums; }
+.evo-legenda { display: flex; gap: 18px; flex-wrap: wrap; margin-top: 6px; font-size: 12.5px; }
+.evo-legenda .item { display: flex; align-items: center; gap: 6px; color: var(--tinta-2); }
+.evo-legenda .bolinha { width: 10px; height: 10px; border-radius: 50%; display: inline-block; }
 
 /* ===== Grid dashboard ===== */
 .grade-2 { display: grid; grid-template-columns: 5fr 7fr; gap: 14px; align-items: start; }
