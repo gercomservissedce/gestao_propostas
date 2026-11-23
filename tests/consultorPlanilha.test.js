@@ -156,3 +156,71 @@ test('importarAtualizacoesConsultor não conta como atualizada quando nada muda,
   assert.equal(alterada.status, 'PERDIDA');
   assert.equal(alterada.etapa, 'PERDIDO');
 });
+
+// Linhas de 13 colunas: ID, Nº, Cliente, Filial, Valor, Status, Etapa, Termômetro,
+// Data novo contato, Anotação, Próximo contato, Data de criação, Motivo da perda
+function linha13(id, status, termometro, motivo) {
+  return [id, '', '', '', 0, status, '', termometro, '', '', '', '', motivo];
+}
+const idDe = (db, numero) => db.prepare('SELECT id FROM propostas WHERE numero = ?').get(numero).id;
+const lerPerda = (db, id) =>
+  db.prepare('SELECT status, termometro, motivo_perda FROM propostas WHERE id = ?').get(id);
+
+test('importação: ATIVA -> PERDIDA força FRIO e grava motivo normalizado', () => {
+  const { db } = dbComPropostas();
+  const id = idDe(db, '1');
+  const r = importarAtualizacoesConsultor(db,
+    planilhaAtualizacao([linha13(id, 'PERDIDA', 'QUENTE', ' preço ')]), '2026-07-10');
+  assert.deepEqual(lerPerda(db, id), { status: 'PERDIDA', termometro: 'FRIO', motivo_perda: 'PREÇO' });
+  assert.equal(r.perdidasSemMotivo, 0);
+});
+
+test('importação: ATIVA -> PERDIDA sem motivo importa e avisa', () => {
+  const { db } = dbComPropostas();
+  const id = idDe(db, '1');
+  const r = importarAtualizacoesConsultor(db,
+    planilhaAtualizacao([linha13(id, 'PERDIDA', '', '')]), '2026-07-10');
+  assert.deepEqual(lerPerda(db, id), { status: 'PERDIDA', termometro: 'FRIO', motivo_perda: null });
+  assert.equal(r.perdidasSemMotivo, 1);
+});
+
+test('importação: ATIVA -> PERDIDA com motivo fora da lista não grava e avisa', () => {
+  const { db } = dbComPropostas();
+  const id = idDe(db, '1');
+  const r = importarAtualizacoesConsultor(db,
+    planilhaAtualizacao([linha13(id, 'PERDIDA', '', 'BLA BLA')]), '2026-07-10');
+  assert.equal(lerPerda(db, id).motivo_perda, null);
+  assert.equal(r.perdidasSemMotivo, 1);
+});
+
+test('importação: perdida existente reimportada sem termômetro/motivo nada muda', () => {
+  const { db } = dbComPropostas();
+  const id = idDe(db, '4');
+  const r = importarAtualizacoesConsultor(db,
+    planilhaAtualizacao([linha13(id, 'PERDIDA', '', '')]), '2026-07-10');
+  assert.deepEqual(lerPerda(db, id), { status: 'PERDIDA', termometro: 'FRIO', motivo_perda: 'PREÇO' });
+  assert.equal(r.atualizadas, 0);
+  assert.equal(r.perdidasSemMotivo, 0);
+});
+
+test('importação: motivo livre existente é preservado com motivo vazio ou inválido', () => {
+  const { db } = dbComPropostas();
+  const id = idDe(db, '4');
+  db.prepare("UPDATE propostas SET motivo_perda = 'CLIENTE COMPROU DO VIZINHO' WHERE id = ?").run(id);
+  importarAtualizacoesConsultor(db,
+    planilhaAtualizacao([linha13(id, 'PERDIDA', 'FRIO', '')]), '2026-07-10');
+  assert.equal(lerPerda(db, id).motivo_perda, 'CLIENTE COMPROU DO VIZINHO');
+  importarAtualizacoesConsultor(db,
+    planilhaAtualizacao([linha13(id, 'PERDIDA', 'FRIO', 'PREÇO...')]), '2026-07-10');
+  assert.equal(lerPerda(db, id).motivo_perda, 'CLIENTE COMPROU DO VIZINHO');
+});
+
+test('importação: perdida existente que volta a ATIVA limpa o motivo', () => {
+  const { db } = dbComPropostas();
+  const id = idDe(db, '4');
+  importarAtualizacoesConsultor(db,
+    planilhaAtualizacao([linha13(id, 'ATIVA', 'MORNO', 'PREÇO')]), '2026-07-10');
+  const p = lerPerda(db, id);
+  assert.equal(p.status, 'ATIVA');
+  assert.equal(p.motivo_perda, null);
+});

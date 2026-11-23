@@ -68,7 +68,7 @@ function importarAtualizacoesConsultor(db, buffer, hoje) {
   const sheet = wb.Sheets['PROPOSTAS'];
   const linhas = sheet ? XLSX.utils.sheet_to_json(sheet) : [];
 
-  const buscaProposta = db.prepare('SELECT status, etapa, termometro FROM propostas WHERE id = ?');
+  const buscaProposta = db.prepare('SELECT status, etapa, termometro, motivo_perda FROM propostas WHERE id = ?');
   const insContato = db.prepare(
     'INSERT INTO contatos (proposta_id, data, anotacao, proximo_contato) VALUES (?, ?, ?, ?)'
   );
@@ -76,7 +76,7 @@ function importarAtualizacoesConsultor(db, buffer, hoje) {
     'UPDATE propostas SET proxima_data_contato = ? WHERE id = ?'
   );
 
-  const resultado = { atualizadas: 0, contatosAdicionados: 0, naoEncontradas: 0 };
+  const resultado = { atualizadas: 0, contatosAdicionados: 0, naoEncontradas: 0, perdidasSemMotivo: 0 };
 
   const importarTudo = db.transaction(() => {
     for (const linha of linhas) {
@@ -88,17 +88,32 @@ function importarAtualizacoesConsultor(db, buffer, hoje) {
       const status = String(linha['Status'] || '').trim().toUpperCase();
       if (STATUS_VALIDOS.includes(status) && status !== atual.status) dados.status = status;
 
+      const statusFinal = dados.status || atual.status;
       const termometro = String(linha['Termômetro'] || '').trim().toUpperCase();
-      if (termometro === '') {
+      if (statusFinal === 'PERDIDA') {
+        // Perdida é sempre FRIO; a coluna Termômetro é ignorada. Em transição o
+        // sincronizarFechamento já força FRIO; sem transição, corrige aqui.
+        if (!dados.status && atual.termometro !== 'FRIO') dados.termometro = 'FRIO';
+      } else if (termometro === '') {
         if (atual.termometro !== null) dados.termometro = null;
       } else if (TERMOMETROS_VALIDOS.includes(termometro) && termometro !== atual.termometro) {
         dados.termometro = termometro;
+      }
+
+      let motivoFinal = atual.motivo_perda;
+      if (statusFinal === 'PERDIDA') {
+        const motivo = String(linha['Motivo da perda'] || '').trim().toUpperCase();
+        if (MOTIVOS_PERDA.includes(motivo) && motivo !== atual.motivo_perda) {
+          dados.motivo_perda = motivo;
+          motivoFinal = motivo;
+        }
       }
 
       const etapa = String(linha['Etapa'] || '').trim().toUpperCase();
       if (etapa && etapa !== atual.etapa) dados.etapa = etapa;
 
       const { changes } = atualizarProposta(db, id, dados, hoje);
+      if (dados.status === 'PERDIDA' && !motivoFinal) resultado.perdidasSemMotivo++;
       if (changes) resultado.atualizadas++;
 
       const dataContato = paraDataIso(linha['Data novo contato']);

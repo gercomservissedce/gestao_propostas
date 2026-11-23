@@ -205,7 +205,8 @@ const Consultores = {
         const resumo = await apiSend('POST', '/api/consultores/importar-atualizacoes',
           { arquivo: base64, nomeArquivo: arquivo.name });
         aviso(`Atualizadas: ${resumo.atualizadas} · Contatos adicionados: ${resumo.contatosAdicionados}` +
-          (resumo.naoEncontradas ? ` · Não encontradas: ${resumo.naoEncontradas}` : ''));
+          (resumo.naoEncontradas ? ` · Não encontradas: ${resumo.naoEncontradas}` : '') +
+          (resumo.perdidasSemMotivo ? ` · Perdidas sem motivo: ${resumo.perdidasSemMotivo}` : ''));
         App.recarregarTela();
       } catch (err) {
         aviso(err.message, true);
