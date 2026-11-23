@@ -65,3 +65,11 @@ test('atualizarProposta limpa motivo_perda e concorrente_nome ao reabrir', () =>
   assert.equal(p.motivo_perda, null);
   assert.equal(p.concorrente_nome, null);
 });
+
+test('atualizarProposta: perder uma proposta QUENTE grava termometro FRIO', () => {
+  const { db, id } = dbComProposta();
+  db.prepare("UPDATE propostas SET status='ATIVA', termometro='QUENTE' WHERE id = ?").run(id);
+  atualizarProposta(db, id, { status: 'PERDIDA' }, '2026-07-10');
+  const p = db.prepare('SELECT termometro FROM propostas WHERE id = ?').get(id);
+  assert.equal(p.termometro, 'FRIO');
+});

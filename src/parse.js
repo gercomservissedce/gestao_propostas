@@ -86,6 +86,13 @@ function normalizar(s) {
     .toLowerCase();
 }
 
+// Motivos de perda válidos. Manter em sincronia com MOTIVOS_PERDA em
+// public/js/propostas.js.
+const MOTIVOS_PERDA = [
+  'PREÇO', 'PRAZO', 'CONCORRÊNCIA', 'CLIENTE DESISTIU',
+  'SEM RETORNO DO CLIENTE', 'ORÇAMENTO INTERNO', 'OUTRO',
+];
+
 // Mantém status, etapa e data de fechamento coerentes ao salvar uma proposta.
 // Sem isso, fechar pelo formulário (só mudando o status) deixa a data vazia
 // e a proposta fica fora do cartão "Fechadas no mês" do dashboard.
@@ -101,6 +108,8 @@ function sincronizarFechamento(dados, hoje) {
     dados.concorrente_nome = null;
   } else if (dados.status === 'PERDIDA') {
     dados.etapa = 'PERDIDO';
+    // Proposta perdida não tem mais temperatura comercial: sempre FRIO.
+    dados.termometro = 'FRIO';
   } else if (dados.status === 'ATIVA') {
     dados.data_fechamento = null;
     if (dados.etapa === 'FECHADO' || dados.etapa === 'PERDIDO') dados.etapa = null;
@@ -110,4 +119,4 @@ function sincronizarFechamento(dados, hoje) {
   return dados;
 }
 
-module.exports = { toIsoDate, toNumber, toNumberBr, mapStatus, mapEtapa, normalizar, sincronizarFechamento, serialExcelParaIso };
+module.exports = { toIsoDate, toNumber, toNumberBr, mapStatus, mapEtapa, normalizar, sincronizarFechamento, serialExcelParaIso, MOTIVOS_PERDA };

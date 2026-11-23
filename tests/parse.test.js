@@ -97,6 +97,14 @@ test('sincronizarFechamento preenche data e etapa ao fechar (regressão do dashb
   assert.equal('data_fechamento' in soValor, false);
 });
 
+test('sincronizarFechamento: PERDIDA sempre vira termometro FRIO', () => {
+  assert.equal(sincronizarFechamento({ status: 'PERDIDA', termometro: 'QUENTE' }, '2026-07-10').termometro, 'FRIO');
+  assert.equal(sincronizarFechamento({ status: 'PERDIDA', termometro: '' }, '2026-07-10').termometro, 'FRIO');
+  assert.equal(sincronizarFechamento({ status: 'PERDIDA' }, '2026-07-10').termometro, 'FRIO');
+  assert.equal(sincronizarFechamento({ status: 'ATIVA', termometro: 'QUENTE' }, '2026-07-10').termometro, 'QUENTE');
+  assert.equal('termometro' in sincronizarFechamento({ vlr_total: 1 }, '2026-07-10'), false);
+});
+
 test('normalizar ignora acento e caixa (regressão da busca)', () => {
   // "condomínio" minúsculo acentuado deve casar com "CONDOMÍNIO" maiúsculo,
   // o que o LIKE do SQLite não faz nativamente.
