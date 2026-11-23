@@ -247,9 +247,9 @@ const Propostas = {
           <option value="">—</option>
           ${ETAPAS.map(e => `<option ${e === p.etapa ? 'selected' : ''}>${e}</option>`).join('')}
         </select></div>
-        <div class="campo"><label>Termômetro</label><select id="f-termometro">
+        <div class="campo"><label>Termômetro</label><select id="f-termometro" ${p.status === 'PERDIDA' ? 'disabled' : ''}>
           <option value="">Não classificada</option>
-          ${['QUENTE', 'MORNO', 'FRIO'].map(t => `<option ${t === p.termometro ? 'selected' : ''}>${t}</option>`).join('')}
+          ${['QUENTE', 'MORNO', 'FRIO'].map(t => `<option ${t === (p.status === 'PERDIDA' ? 'FRIO' : p.termometro) ? 'selected' : ''}>${t}</option>`).join('')}
         </select></div>
         <div class="campo"><label>Origem</label><select id="f-origem">
           <option value="">—</option>
@@ -307,6 +307,10 @@ const Propostas = {
     document.getElementById('f-status').onchange = e => {
       const dataFech = document.getElementById('f-data_fechamento');
       const etapa = document.getElementById('f-etapa');
+      // Perdida sempre é FRIO (o servidor também garante)
+      const termo = document.getElementById('f-termometro');
+      if (e.target.value === 'PERDIDA') termo.value = 'FRIO';
+      termo.disabled = e.target.value === 'PERDIDA';
       if (e.target.value === 'FECHADA') {
         if (!dataFech.value) dataFech.value = hojeIso();
         etapa.value = 'FECHADO';
