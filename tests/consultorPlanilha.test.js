@@ -3,6 +3,7 @@ const assert = require('node:assert');
 const XLSX = require('xlsx');
 const { openDb } = require('../src/db');
 const { gerarPlanilhaConsultor } = require('../src/consultorPlanilha');
+const { MOTIVOS_PERDA } = require('../src/parse');
 
 function dbComPropostas() {
   const db = openDb(':memory:');
@@ -19,10 +20,14 @@ function dbComPropostas() {
     VALUES (1, '2', '2026-06-01', 'COND FECHADA', 'FECHADA', 'FECHADO', 2000, ?, '2026-06-15')`).run(consultorA);
   db.prepare(`INSERT INTO propostas (filial_id, numero, data_emissao, cliente, status, vlr_total, consultor_id)
     VALUES (1, '3', '2026-07-01', 'COND OUTRO CONSULTOR', 'ATIVA', 3000, ?)`).run(consultorB);
+  db.prepare(`INSERT INTO propostas (filial_id, numero, data_emissao, cliente, status, termometro, motivo_perda, vlr_total, consultor_id)
+    VALUES (1, '4', '2026-05-20', 'COND PERDIDA', 'PERDIDA', 'FRIO', 'PREÇO', 500, ?)`).run(consultorA);
+  db.prepare(`INSERT INTO propostas (filial_id, numero, data_emissao, cliente, status, termometro, motivo_perda, vlr_total, consultor_id)
+    VALUES (1, '5', '2026-05-21', 'COND PERDIDA B', 'PERDIDA', 'FRIO', 'PREÇO', 600, ?)`).run(consultorB);
   return { db, consultorA };
 }
 
-test('gerarPlanilhaConsultor inclui só propostas ATIVA do consultor pedido', () => {
+test('gerarPlanilhaConsultor inclui propostas ATIVA e PERDIDA do consultor pedido', () => {
   const { db, consultorA } = dbComPropostas();
   const buffer = gerarPlanilhaConsultor(db, consultorA);
   const wb = XLSX.read(buffer, { type: 'buffer' });
@@ -31,12 +36,28 @@ test('gerarPlanilhaConsultor inclui só propostas ATIVA do consultor pedido', ()
   assert.ok(wb.SheetNames.includes('INSTRUÇÕES'));
 
   const linhas = XLSX.utils.sheet_to_json(wb.Sheets['PROPOSTAS']);
-  assert.equal(linhas.length, 1);
-  assert.equal(linhas[0]['Nº proposta'], '1');
-  assert.equal(linhas[0]['Cliente'], 'COND ATIVA');
-  assert.equal(linhas[0]['Filial'], 'CEARÁ');
-  assert.equal(linhas[0]['Status'], 'ATIVA');
-  assert.equal(linhas[0]['Termômetro'], 'QUENTE');
+  assert.equal(linhas.length, 2);
+  assert.deepEqual(linhas.map(l => l['Nº proposta']).sort(), ['1', '4']);
+
+  const ativa = linhas.find(l => l['Nº proposta'] === '1');
+  assert.equal(ativa['Cliente'], 'COND ATIVA');
+  assert.equal(ativa['Filial'], 'CEARÁ');
+  assert.equal(ativa['Status'], 'ATIVA');
+  assert.equal(ativa['Termômetro'], 'QUENTE');
+  assert.equal(ativa['Data de criação'], '01/07/2026');
+  assert.ok(!ativa['Motivo da perda']);
+
+  const perdida = linhas.find(l => l['Nº proposta'] === '4');
+  assert.equal(perdida['Data de criação'], '20/05/2026');
+  assert.equal(perdida['Motivo da perda'], 'PREÇO');
+  assert.equal(perdida['Termômetro'], 'FRIO');
+});
+
+test('aba INSTRUÇÕES lista os motivos de perda válidos', () => {
+  const { db, consultorA } = dbComPropostas();
+  const wb = XLSX.read(gerarPlanilhaConsultor(db, consultorA), { type: 'buffer' });
+  const textos = XLSX.utils.sheet_to_json(wb.Sheets['INSTRUÇÕES'], { header: 1 }).map(l => String(l[0] || ''));
+  assert.ok(textos.some(t => t.includes(MOTIVOS_PERDA.join(', '))));
 });
 
 const { importarAtualizacoesConsultor, COLUNAS_PROPOSTAS } = require('../src/consultorPlanilha');

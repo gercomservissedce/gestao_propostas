@@ -1,10 +1,11 @@
 const XLSX = require('xlsx');
 const { atualizarProposta } = require('./propostaUpdate');
-const { serialExcelParaIso } = require('./parse');
+const { serialExcelParaIso, MOTIVOS_PERDA } = require('./parse');
 
 const COLUNAS_PROPOSTAS = [
   'ID', 'Nº proposta', 'Cliente', 'Filial', 'Valor total', 'Status', 'Etapa',
   'Termômetro', 'Data novo contato', 'Anotação do contato', 'Próximo contato',
+  'Data de criação', 'Motivo da perda',
 ];
 
 const INSTRUCOES = [
@@ -16,20 +17,24 @@ const INSTRUCOES = [
   ['Etapa: texto livre (ex.: EM NEGOCIAÇÃO, AGUARDANDO VISITA).'],
   ['Datas no formato dd/mm/aaaa.'],
   ['Preencha "Data novo contato" só se for registrar um contato novo com o cliente.'],
+  [`Motivos de perda válidos: ${MOTIVOS_PERDA.join(', ')}.`],
+  ['Status PERDIDA: o termômetro vira FRIO automaticamente.'],
+  ['Data de criação é só para consulta, não é importada.'],
 ];
 
 function gerarPlanilhaConsultor(db, consultorId) {
   const linhas = db.prepare(`
-    SELECT p.id, p.numero, p.cliente, f.estado filial, p.vlr_total, p.status, p.etapa, p.termometro
+    SELECT p.id, p.numero, p.cliente, f.estado filial, p.vlr_total, p.status, p.etapa, p.termometro, p.data_emissao, p.motivo_perda
     FROM propostas p
     LEFT JOIN filiais f ON f.id = p.filial_id
-    WHERE p.consultor_id = ? AND p.status = 'ATIVA'
+    WHERE p.consultor_id = ? AND p.status IN ('ATIVA','PERDIDA')
     ORDER BY p.data_emissao DESC
   `).all(consultorId);
 
   const aoa = [COLUNAS_PROPOSTAS, ...linhas.map(p => [
     p.id, p.numero, p.cliente, p.filial || '', p.vlr_total, p.status, p.etapa || '',
     p.termometro || '', '', '', '',
+    p.data_emissao ? p.data_emissao.split('-').reverse().join('/') : '', p.motivo_perda || '',
   ])];
 
   const wb = XLSX.utils.book_new();
